@@ -1,14 +1,27 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
-// All routes matched here will require the user to be logged in
+// Routes that require authentication
 const isProtectedRoute = createRouteMatcher([
-  '/dashboard(.*)', 
-  '/integrations(.*)', 
-  '/agents(.*)', 
-  '/workflows(.*)'
+  '/dashboard(.*)',
+  '/integrations(.*)',
+  '/agents(.*)',
+  '/workflows(.*)',
+  '/onboarding(.*)'
 ]);
 
+// The landing page route
+const isLandingPageRoute = createRouteMatcher(['/']);
+
 export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+
+  // 1. If the user is logged in and tries to access the landing page, redirect to dashboard
+  if (userId && isLandingPageRoute(req)) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // 2. Protect relevant routes
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
