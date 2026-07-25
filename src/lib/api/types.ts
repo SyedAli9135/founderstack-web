@@ -13,4 +13,16 @@ export interface Organization {
   createdAt: string;
 }
 
-// More backend DTO standard types will be added here!
+export type IntegrationStatus = "connected" | "not_connected" | "expired" | "unknown";
+
+export interface Integration {
+  service: string;
+  name: string;
+  category: string;
+  auth_type: "oauth" | "api_key" | "pat";
+  status: IntegrationStatus;
+  connected_at: string | null;
+  scopes: string[];
+  description?: string;
+}
+

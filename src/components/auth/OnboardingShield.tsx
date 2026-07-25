@@ -29,10 +29,15 @@ export function OnboardingShield({ children }: OnboardingShieldProps) {
         const isOnboarding = pathname === "/onboarding";
         const hasActiveKey = status?.is_valid === true;
 
+        // Safely extract search params inside client-side useEffect
+        const params = new URLSearchParams(window.location.search);
+        const step = params.get("step");
+        const hasActiveStep = step && parseInt(step, 10) > 1;
+
         if (!hasActiveKey && !isOnboarding) {
             // Missing key, kick to onboarding
             router.push("/onboarding");
-        } else if (hasActiveKey && isOnboarding) {
+        } else if (hasActiveKey && isOnboarding && !hasActiveStep) {
             // already has key, kick to dashboard
             router.push("/dashboard");
         }
