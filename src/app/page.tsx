@@ -1,103 +1,129 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Bot, Zap, Shield, Rocket } from "lucide-react";
+import { brandIconMap, brandColorMap } from "@/components/integrations/brand-icons";
+import { ArrowRight, KeyRound, Puzzle, Bot } from "lucide-react";
+
+const CONNECTED_SERVICES = [
+  "slack",
+  "discord",
+  "notion",
+  "google_drive",
+  "google_calendar",
+  "stripe",
+  "github",
+  "linkedin",
+];
+
+const FEATURES = [
+  {
+    icon: KeyRound,
+    title: "Bring your own key",
+    description:
+      "Add your Anthropic API key once. It's encrypted with AES-256 and never leaves your workspace — you're never paying us a markup on model usage.",
+  },
+  {
+    icon: Puzzle,
+    title: "One panel, eight integrations",
+    description:
+      "Slack, Notion, Google Drive, Google Calendar, GitHub, Stripe, LinkedIn, Discord — connect each once and your agents can act on all of them.",
+  },
+  {
+    icon: Bot,
+    title: "Built for one person",
+    description:
+      "No team seats, no admin console, no enterprise sales call. FounderStack runs the parts of your business you don't have time for — solo, from day one.",
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="px-4 lg:px-6 h-16 flex items-center border-b border-border/40 backdrop-blur-md sticky top-0 z-50">
-        <Link className="flex items-center justify-center space-x-2" href="/">
-          <div className="bg-primary p-1 rounded-lg">
-            <Bot className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">FounderStack AI</span>
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-50 flex h-16 items-center border-b border-border bg-background px-4 lg:px-6">
+        <Link className="flex items-center" href="/">
+          <span className="text-lg font-semibold tracking-tight">FounderStack</span>
         </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link className="hidden sm:flex text-sm font-medium hover:text-primary transition-colors items-center" href="/sign-in">
-            Login
+        <nav className="ml-auto flex items-center gap-4">
+          <Link
+            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
+            href="/sign-in"
+          >
+            Sign in
           </Link>
           <Button asChild size="sm">
-            <Link href="/sign-up">Get Started</Link>
+            <Link href="/sign-up">
+              Get started
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
           </Button>
         </nav>
       </header>
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background to-background/50 relative overflow-hidden">
-          {/* Subtle Glow Effects */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+        <section className="mx-auto max-w-3xl px-4 py-24 text-center md:py-32">
+          <p className="text-sm font-medium text-muted-foreground">Private beta</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
+            The Headless COO for <span className="text-primary">solo founders</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+            Connect the tools you already run your business on. Bring your own Anthropic key. Let
+            agents handle the busywork while you build.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg">
+              <Link href="/sign-up">
+                Get started
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/sign-in">Sign in</Link>
+            </Button>
+          </div>
 
-          <div className="container px-4 md:px-6 mx-auto relative z-10">
-            <div className="flex flex-col items-center space-y-8 text-center">
-              <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary shadow-sm space-x-2 animate-pulse">
-                <Zap className="h-4 w-4" />
-                <span>Now in Beta for V1 Founders</span>
-              </div>
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl/none max-w-4xl mx-auto">
-                The Headless COO for <span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent italic">Solo Founders</span>
-              </h1>
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl font-light leading-relaxed">
-                FounderStack AI automates your ops, finances, and marketing so you can focus on building what matters. Your 24/7 autonomous team starts here.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Button asChild size="lg" className="h-12 px-8 text-lg font-semibold shadow-lg shadow-primary/20 rounded-full">
-                  <Link href="/sign-up">
-                    Build Your Agent Team <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-lg font-semibold rounded-full">
-                  <Link href="#features">Learn More</Link>
-                </Button>
-              </div>
+          <div className="mt-16">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Works with the tools you already use
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              {CONNECTED_SERVICES.map((service) => {
+                const Icon = brandIconMap[service];
+                return (
+                  <div
+                    key={service}
+                    className={`flex h-10 w-10 items-center justify-center rounded-md border border-border bg-card ${brandColorMap[service] ?? "text-foreground"}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32 border-t border-border/40 bg-zinc-950/20">
-          <div className="container px-4 md:px-6 mx-auto">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col items-center space-y-4 p-8 rounded-3xl border border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300">
-                <div className="p-3 bg-primary/10 rounded-2xl">
-                  <Shield className="h-8 w-8 text-primary" />
+        <section className="border-t border-border">
+          <div className="mx-auto grid max-w-5xl gap-8 px-4 py-20 sm:grid-cols-3">
+            {FEATURES.map((feature) => (
+              <div key={feature.title}>
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-primary">
+                  <feature.icon className="h-4 w-4" />
                 </div>
-                <h3 className="text-xl font-bold">Zero-Trust Security</h3>
-                <p className="text-muted-foreground text-center leading-relaxed">
-                  Agents have capabilities, not credentials. Automated tool tokens are handled securely via Arcade AI.
+                <h3 className="mt-4 text-sm font-medium">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
                 </p>
               </div>
-              <div className="flex flex-col items-center space-y-4 p-8 rounded-3xl border border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300">
-                <div className="p-3 bg-primary/10 rounded-2xl">
-                  <Bot className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold">Agentic Orchestration</h3>
-                <p className="text-muted-foreground text-center leading-relaxed">
-                  Complex workflows handled by specialized agents that plan, execute, and verify their own work autonomously.
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-4 p-8 rounded-3xl border border-border/40 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300">
-                <div className="p-3 bg-primary/10 rounded-2xl">
-                  <Rocket className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold">Rapid Integration</h3>
-                <p className="text-muted-foreground text-center leading-relaxed">
-                  Connect Stripe, Slack, and your knowledge base in minutes with our native Model Context Protocol support.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
       </main>
 
-      <footer className="w-full py-6 px-4 md:px-6 border-t border-border/40 flex flex-col sm:flex-row items-center gap-4 text-muted-foreground bg-background">
-        <p className="text-xs">© 2026 FounderStack AI. All rights reserved.</p>
-        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
+      <footer className="flex flex-col items-center gap-3 border-t border-border px-4 py-6 text-muted-foreground sm:flex-row">
+        <p className="text-xs">© 2026 FounderStack. All rights reserved.</p>
+        <nav className="flex gap-6 sm:ml-auto">
+          <Link className="text-xs underline-offset-4 hover:underline" href="#">
             Terms of Service
           </Link>
-          <Link className="text-xs hover:underline underline-offset-4" href="#">
+          <Link className="text-xs underline-offset-4 hover:underline" href="#">
             Privacy Policy
           </Link>
         </nav>

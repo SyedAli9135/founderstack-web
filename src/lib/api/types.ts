@@ -26,3 +26,11 @@ export interface Integration {
   description?: string;
 }
 
+export interface ApiKeyStatus {
+  provider?: string;
+  is_valid?: boolean;
+  key_prefix?: string;
+  updated_at?: string;
+  last_used_at?: string;
+}
+

@@ -7,6 +7,33 @@ if (!API_BASE_URL.endsWith("/api/v1")) {
   API_BASE_URL = `${API_BASE_URL.replace(/\/$/, "")}/api/v1`;
 }
 
+interface ErrorEnvelope {
+  status: "error";
+  error: {
+    code?: string;
+    message?: string;
+    request_id?: string;
+  };
+}
+
+/** Thrown by every request the client makes when the backend responds
+ * with its standard ErrorEnvelope — carries the same code/request_id a
+ * human would see in the server logs, so a caller can show or log
+ * something more useful than a generic "request failed". */
+export class ApiError extends Error {
+  code?: string;
+  requestId?: string;
+  statusCode: number;
+
+  constructor(message: string, statusCode: number, code?: string, requestId?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.statusCode = statusCode;
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
+
 export function useApiClient() {
   const { getToken } = useAuth();
 
@@ -25,19 +52,14 @@ export function useApiClient() {
       headers,
     });
 
-    const body = await response.json().catch(() => ({}));
+    const body: Partial<ErrorEnvelope> & { data?: T } = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      // Handle standardized ErrorEnvelope
-      const message = body.error?.message || `API Error: ${response.statusText}`;
+      const message = body.error?.message || `API error: ${response.statusText}`;
       const requestId = response.headers.get("X-Request-ID") || body.error?.request_id;
+      const error = new ApiError(message, response.status, body.error?.code, requestId);
 
-      const error = new Error(message) as any;
-      error.requestId = requestId;
-      error.code = body.error?.code;
-      error.statusCode = response.status;
-
-      console.error(`[API Error] ${requestId ? `(ReqID: ${requestId})` : ""} ${message}`);
+      console.error(`[API Error]${requestId ? ` (ReqID: ${requestId})` : ""} ${message}`);
       throw error;
     }
 

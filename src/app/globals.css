@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -27,6 +27,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -48,73 +49,123 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Design tokens — a cool-neutral console palette with one deliberate
+ * signal color (deep teal), replacing the previous default shadcn
+ * grayscale + ad hoc zinc/blue hardcoded throughout the app. Extend these
+ * tokens rather than reaching for raw Tailwind colors in components —
+ * see founderstack-web's CLAUDE.md.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #f6f7f5;
+  --foreground: #14181b;
+  --card: #ffffff;
+  --card-foreground: #14181b;
+  --popover: #ffffff;
+  --popover-foreground: #14181b;
+  --primary: #0b6b57;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0ec;
+  --secondary-foreground: #14181b;
+  --muted: #eef0ec;
+  --muted-foreground: #5b6560;
+  --accent: #e3f1ec;
+  --accent-foreground: #0b6b57;
+  --destructive: #b3423a;
+  --destructive-foreground: #ffffff;
+  --border: #dfe3de;
+  --input: #dfe3de;
+  --ring: #0b6b57;
+  --chart-1: #0b6b57;
+  --chart-2: #3d8a76;
+  --chart-3: #6ba896;
+  --chart-4: #98c6b8;
+  --chart-5: #c5e4da;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #14181b;
+  --sidebar-primary: #0b6b57;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e3f1ec;
+  --sidebar-accent-foreground: #0b6b57;
+  --sidebar-border: #dfe3de;
+  --sidebar-ring: #0b6b57;
+}
+
+/* No in-app theme toggle exists yet — default to the visitor's OS
+   preference automatically. .dark below stays available as an explicit
+   override for whenever a manual toggle gets added; :not(.light) leaves
+   room for a future "force light" override too. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #0b0f0e;
+    --foreground: #e7ece9;
+    --card: #121614;
+    --card-foreground: #e7ece9;
+    --popover: #121614;
+    --popover-foreground: #e7ece9;
+    --primary: #2ba98d;
+    --primary-foreground: #06110d;
+    --secondary: #1b211d;
+    --secondary-foreground: #e7ece9;
+    --muted: #1b211d;
+    --muted-foreground: #9ba8a2;
+    --accent: #17251f;
+    --accent-foreground: #6fcdb3;
+    --destructive: #d97862;
+    --destructive-foreground: #1a0805;
+    --border: #232a27;
+    --input: #232a27;
+    --ring: #2ba98d;
+    --chart-1: #2ba98d;
+    --chart-2: #56b89f;
+    --chart-3: #81c7b1;
+    --chart-4: #abd6c3;
+    --chart-5: #d6e5d5;
+    --sidebar: #0e1210;
+    --sidebar-foreground: #e7ece9;
+    --sidebar-primary: #2ba98d;
+    --sidebar-primary-foreground: #06110d;
+    --sidebar-accent: #17251f;
+    --sidebar-accent-foreground: #6fcdb3;
+    --sidebar-border: #232a27;
+    --sidebar-ring: #2ba98d;
+  }
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0b0f0e;
+  --foreground: #e7ece9;
+  --card: #121614;
+  --card-foreground: #e7ece9;
+  --popover: #121614;
+  --popover-foreground: #e7ece9;
+  --primary: #2ba98d;
+  --primary-foreground: #06110d;
+  --secondary: #1b211d;
+  --secondary-foreground: #e7ece9;
+  --muted: #1b211d;
+  --muted-foreground: #9ba8a2;
+  --accent: #17251f;
+  --accent-foreground: #6fcdb3;
+  --destructive: #d97862;
+  --destructive-foreground: #1a0805;
+  --border: #232a27;
+  --input: #232a27;
+  --ring: #2ba98d;
+  --chart-1: #2ba98d;
+  --chart-2: #56b89f;
+  --chart-3: #81c7b1;
+  --chart-4: #abd6c3;
+  --chart-5: #d6e5d5;
+  --sidebar: #0e1210;
+  --sidebar-foreground: #e7ece9;
+  --sidebar-primary: #2ba98d;
+  --sidebar-primary-foreground: #06110d;
+  --sidebar-accent: #17251f;
+  --sidebar-accent-foreground: #6fcdb3;
+  --sidebar-border: #232a27;
+  --sidebar-ring: #2ba98d;
 }
 
 @layer base {
@@ -122,9 +173,6 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    @apply bg-background text-foreground font-sans;
   }
 }

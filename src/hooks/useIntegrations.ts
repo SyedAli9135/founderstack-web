@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api/client";
+import { useApiClient, ApiError } from "@/lib/api/client";
 import { Integration } from "@/lib/api/types";
 import { toast } from "sonner";
 
@@ -13,35 +13,43 @@ export function useIntegrations() {
   });
 }
 
+interface ConnectResponse {
+  redirect_url?: string;
+  status?: string;
+}
+
+interface ConnectVariables {
+  service: string;
+  key?: string;
+}
+
+// Catalog keys are lowercase/underscored ("google_drive") — this is only
+// for toast copy, not anywhere the exact catalog name is required.
+function displayName(service: string): string {
+  return service.charAt(0).toUpperCase() + service.slice(1).replace(/_/g, " ");
+}
+
 export function useConnectIntegration() {
   const api = useApiClient();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async ({ service, key }: { service: string; key?: string }) => {
-      // The backend expects an optional JSON payload with "key" parameter
+  return useMutation<ConnectResponse, ApiError, ConnectVariables>({
+    mutationFn: ({ service, key }) => {
+      // The backend's unified /connect endpoint ignores the body entirely
+      // for OAuth services — the payload only matters for key-based ones.
       const payload = key ? { key } : {};
-      return api.post<{ redirect_url?: string; status?: string }>(
-        `/integrations/${service}/connect`,
-        payload
-      );
+      return api.post<ConnectResponse>(`/integrations/${service}/connect`, payload);
     },
     onSuccess: (data, variables) => {
       if (data.redirect_url) {
-        // Redirect browser to OAuth authorization URL (e.g. Slack/Notion)
         window.location.href = data.redirect_url;
-      } else {
-        // Direct integration via key (Stripe/GitHub)
-        queryClient.invalidateQueries({ queryKey: ["integrations"] });
-        toast.success(`${variables.service.toUpperCase()} Connected!`, {
-          description: "Integration state updated to active.",
-        });
+        return;
       }
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      toast.success(`${displayName(variables.service)} connected`);
     },
-    onError: (err: any) => {
-      toast.error("Connection Failed", {
-        description: err.message || "An unexpected error occurred.",
-      });
+    onError: (err) => {
+      toast.error("Connection failed", { description: err.message });
     },
   });
 }
@@ -50,18 +58,14 @@ export function useDisconnectIntegration() {
   const api = useApiClient();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (service: string) => api.delete<{ status: string }>(`/integrations/${service}`),
+  return useMutation<{ status: string }, ApiError, string>({
+    mutationFn: (service) => api.delete<{ status: string }>(`/integrations/${service}`),
     onSuccess: (_, service) => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
-      toast.success(`${service.toUpperCase()} Disconnected`, {
-        description: "The integration access token was revoked successfully.",
-      });
+      toast.success(`${displayName(service)} disconnected`);
     },
-    onError: (err: any) => {
-      toast.error("Disconnection Failed", {
-        description: err.message || "Could not revoke integration token.",
-      });
+    onError: (err) => {
+      toast.error("Disconnect failed", { description: err.message });
     },
   });
 }
