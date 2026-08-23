@@ -2,9 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useApiClient } from "@/lib/api/client";
-import { ApiKeyStatus } from "@/lib/api/types";
+import { useLLMProviders } from "@/hooks/useLLMProviders";
 import { Loader2 } from "lucide-react";
 
 interface OnboardingShieldProps {
@@ -14,20 +12,18 @@ interface OnboardingShieldProps {
 export function OnboardingShield({ children }: OnboardingShieldProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const api = useApiClient();
 
-    const { data: status, isLoading } = useQuery({
-        queryKey: ["api-key-status"],
-        queryFn: () => api.get<ApiKeyStatus>("/settings/api-key/status"),
-        // Don't retry keys status too often
-        staleTime: 5 * 60 * 1000,
-    });
+    // Checks ALL 5 providers, not just Anthropic — a founder who only
+    // configured e.g. OpenAI must not get bounced back to onboarding
+    // forever. Was querying the single-provider /settings/api-key/status
+    // (defaults to anthropic), which broke exactly that case.
+    const { data: providers, isLoading } = useLLMProviders();
 
     useEffect(() => {
         if (isLoading) return;
 
         const isOnboarding = pathname === "/onboarding";
-        const hasActiveKey = status?.is_valid === true;
+        const hasActiveKey = providers?.some((p) => p.is_valid) ?? false;
 
         // Safely extract search params inside client-side useEffect
         const params = new URLSearchParams(window.location.search);
@@ -41,7 +37,7 @@ export function OnboardingShield({ children }: OnboardingShieldProps) {
             // already has key, kick to dashboard
             router.push("/dashboard");
         }
-    }, [status, isLoading, pathname, router]);
+    }, [providers, isLoading, pathname, router]);
 
     if (isLoading) {
         return (

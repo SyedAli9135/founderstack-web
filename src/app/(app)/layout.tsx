@@ -16,7 +16,7 @@ const navItems = [
   { href: "/integrations", label: "Integrations", icon: Puzzle },
 ];
 
-const settingsItems = [{ href: "/settings/api-key", label: "API Key", icon: KeyRound }];
+const settingsItems = [{ href: "/settings/api-key", label: "LLM Providers", icon: KeyRound }];
 
 function NavLink({
   href,

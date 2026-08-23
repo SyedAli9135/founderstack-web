@@ -46,22 +46,10 @@ export default function OnboardingPage() {
         <div className="mx-auto w-full max-w-sm">
           <h1 className="mb-3 text-2xl font-semibold tracking-tight">Set up your workspace</h1>
           <p className="mx-auto mb-8 max-w-xs text-sm text-muted-foreground">
-            Add an Anthropic key to start running agentic workflows.
+            Add an LLM provider key to start running agentic workflows.
           </p>
 
           <ApiKeyForm onSuccess={handleStep1Success} />
-
-          <p className="mt-6 text-xs text-muted-foreground">
-            Need a key?{" "}
-            <a
-              href="https://console.anthropic.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-foreground underline underline-offset-4"
-            >
-              Get one from Anthropic
-            </a>
-          </p>
         </div>
       ) : (
         <div className="w-full max-w-4xl space-y-8">

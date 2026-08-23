@@ -34,3 +34,19 @@ export interface ApiKeyStatus {
   last_used_at?: string;
 }
 
+// One entry per LLM provider the backend's BYOK catalog supports
+// (anthropic, openai, gemini, qwen, deepseek) — GET /settings/api-key/providers
+// always returns all of them, is_configured/is_valid/is_active false and
+// key_prefix null for ones this org hasn't touched yet.
+export interface LLMProvider {
+  provider: string;
+  name: string;
+  key_prefix_hint: string;
+  is_configured: boolean;
+  is_valid: boolean;
+  is_active: boolean;
+  key_prefix: string | null;
+  updated_at: string | null;
+  last_used_at: string | null;
+}
+

@@ -19,7 +19,7 @@ const FEATURES = [
     icon: KeyRound,
     title: "Bring your own key",
     description:
-      "Add your Anthropic API key once. It's encrypted with AES-256 and never leaves your workspace — you're never paying us a markup on model usage.",
+      "Add a key from Anthropic, OpenAI, Gemini, Qwen, or DeepSeek. It's encrypted with AES-256 and never leaves your workspace — you're never paying us a markup on model usage.",
   },
   {
     icon: Puzzle,
@@ -65,7 +65,7 @@ export default function LandingPage() {
             The Headless COO for <span className="text-primary">solo founders</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            Connect the tools you already run your business on. Bring your own Anthropic key. Let
+            Connect the tools you already run your business on. Bring your own LLM key. Let
             agents handle the busywork while you build.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
