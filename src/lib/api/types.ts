@@ -64,3 +64,40 @@ export interface AppDocument {
   error_detail?: string | null;
 }
 
+export type AgentType = "orchestrator" | "specialist";
+
+export interface AgentPolicyScope {
+  max_tool_calls?: number;
+  max_cost_per_run_usd?: number;
+  allowed_tools: string[];
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  agent_type: string;
+  model: string;
+  system_prompt: string;
+  context_window_tokens: number;
+  max_output_tokens: number;
+  temperature: number;
+  policy_scope: AgentPolicyScope;
+  allowed_mcp_servers: string[];
+  is_active: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// One entry per tool from a service the org has actually connected —
+// GET /agents/tools. tool_id is the "service.tool_name" string
+// policy_scope.allowed_tools expects.
+export interface AgentToolOption {
+  service: string;
+  name: string;
+  tool_id: string;
+  description: string;
+}
+
