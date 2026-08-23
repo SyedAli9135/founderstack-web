@@ -50,3 +50,17 @@ export interface LLMProvider {
   last_used_at: string | null;
 }
 
+export type DocumentProcessingStatus = "pending" | "processing" | "indexed" | "failed" | "deleting";
+
+export interface AppDocument {
+  id: string;
+  filename: string;
+  category: string;
+  processing_status: DocumentProcessingStatus;
+  total_chunks: number;
+  byte_size: number;
+  created_at: string;
+  indexed_at?: string | null;
+  error_detail?: string | null;
+}
+

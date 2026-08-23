@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { OnboardingShield } from "@/components/auth/OnboardingShield";
-import { LayoutDashboard, Bot, Puzzle, KeyRound, Menu } from "lucide-react";
+import { LayoutDashboard, Bot, Puzzle, KeyRound, Menu, FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/integrations", label: "Integrations", icon: Puzzle },
 ];
 
