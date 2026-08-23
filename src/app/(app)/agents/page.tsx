@@ -37,23 +37,30 @@ function AgentCard({ agent }: { agent: Agent }) {
 
       <div className="mt-4">
         {confirmingDelete ? (
-          <div className="flex justify-end gap-2">
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setConfirmingDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="xs"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate(agent.id, { onSuccess: () => setConfirmingDelete(false) })}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Delete"}
-            </Button>
+          <div className="space-y-2">
+            {agent.workflow_count > 0 && (
+              <p className="text-xs text-destructive">
+                {agent.workflow_count} workflow{agent.workflow_count === 1 ? "" : "s"} use{agent.workflow_count === 1 ? "s" : ""} this agent.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="xs"
+                variant="destructive"
+                onClick={() => deleteMutation.mutate(agent.id, { onSuccess: () => setConfirmingDelete(false) })}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Delete"}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex justify-end gap-2">

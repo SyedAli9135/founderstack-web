@@ -89,6 +89,10 @@ export interface Agent {
   version: number;
   created_at: string;
   updated_at: string;
+  // Active workflows pointing at this agent (workflow 8) — GET/LIST only;
+  // 0 on a freshly created/updated agent. Powers the "N workflows use this
+  // agent" warning before deleting one.
+  workflow_count: number;
 }
 
 // One entry per tool from a service the org has actually connected —
@@ -99,5 +103,26 @@ export interface AgentToolOption {
   name: string;
   tool_id: string;
   description: string;
+}
+
+export type WorkflowTriggerType = "manual" | "scheduled" | "webhook";
+
+export interface Workflow {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  name: string;
+  description?: string;
+  trigger_type: WorkflowTriggerType;
+  cron_expression?: string;
+  timezone: string;
+  next_run_at?: string;
+  requires_approval: boolean;
+  task_input_template?: string;
+  estimated_manual_minutes?: number;
+  is_active: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
 }
 
