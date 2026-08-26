@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { OnboardingShield } from "@/components/auth/OnboardingShield";
-import { LayoutDashboard, Bot, Puzzle, KeyRound, Menu, FileText, Workflow } from "lucide-react";
+import { LayoutDashboard, Bot, Puzzle, KeyRound, Menu, FileText, Workflow, History } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/workflows", label: "Workflows", icon: Workflow },
+  { href: "/runs", label: "Runs", icon: History },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/integrations", label: "Integrations", icon: Puzzle },
 ];

@@ -85,15 +85,11 @@ export function useDeleteWorkflow() {
 export function useRunWorkflow() {
   const api = useApiClient();
 
-  return useMutation<{ run_id: string; status: string }, ApiError, string>({
-    mutationFn: (id) => api.post<{ run_id: string; status: string }>(`/workflows/${id}/run`, {}),
-    onSuccess: () => {
-      toast.success("Run queued", {
-        description: "Execution tracking arrives in a later workflow — this queues the run.",
-      });
-    },
+  return useMutation<{ run_id: string; status: string; stream_url: string }, ApiError, string>({
+    mutationFn: (id) =>
+      api.post<{ run_id: string; status: string; stream_url: string }>(`/workflows/${id}/run`, {}),
     onError: (err) => {
-      toast.error("Could not queue run", { description: err.message });
+      toast.error("Could not start run", { description: err.message });
     },
   });
 }

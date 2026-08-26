@@ -1,11 +1,16 @@
 import { useAuth } from "@clerk/nextjs";
 
-let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+let apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Ensure the base URL always points to the correct API version suffix
-if (!API_BASE_URL.endsWith("/api/v1")) {
-  API_BASE_URL = `${API_BASE_URL.replace(/\/$/, "")}/api/v1`;
+if (!apiBaseUrl.endsWith("/api/v1")) {
+  apiBaseUrl = `${apiBaseUrl.replace(/\/$/, "")}/api/v1`;
 }
+
+// Exported for useWorkflowStream — SSE can't go through fetchApi below (it
+// needs the response body as a stream, not JSON-parsed), but still needs
+// the same base URL and Clerk-token-as-Bearer-header auth.
+export const API_BASE_URL = apiBaseUrl;
 
 interface ErrorEnvelope {
   status: "error";

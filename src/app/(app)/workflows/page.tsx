@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useWorkflows, useUpdateWorkflow, useDeleteWorkflow, useRunWorkflow } from "@/hooks/useWorkflows";
 import { Workflow } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ function formatNextRun(iso?: string): string | null {
 
 function WorkflowCard({ workflow }: { workflow: Workflow }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const router = useRouter();
   const updateMutation = useUpdateWorkflow();
   const deleteMutation = useDeleteWorkflow();
   const runMutation = useRunWorkflow();
@@ -114,7 +116,11 @@ function WorkflowCard({ workflow }: { workflow: Workflow }) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => runMutation.mutate(workflow.id)}
+              onClick={() =>
+                runMutation.mutate(workflow.id, {
+                  onSuccess: (data) => router.push(`/runs/${data.run_id}`),
+                })
+              }
               disabled={runMutation.isPending}
             >
               {runMutation.isPending ? (

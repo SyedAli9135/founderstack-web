@@ -126,3 +126,84 @@ export interface Workflow {
   updated_at: string;
 }
 
+// Workflow 9 — matches internal/api/runs/handler.go's runSummary/runDetail
+// and internal/core/graph's Engine.Bus events exactly. A run's lifecycle:
+// pending -> running -> (awaiting_approval ->)* completed | failed | cancelled.
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "awaiting_approval"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  status: RunStatus;
+  output?: string;
+  cost_so_far_usd: number;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  created_at: string;
+}
+
+export interface RunDetail extends WorkflowRun {
+  triggered_by?: string;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  tool_call_count: number;
+}
+
+// The 5 nodes graph.BuildNodes registers — "approval_gate" only ever
+// appears in the stream when a destructive/financial tool call actually
+// suspends the run for a human decision.
+export type RunNodeName = "planner" | "executor" | "approval_gate" | "validator" | "reporter";
+
+export type RunEventType =
+  | "node_start"
+  | "node_end"
+  | "tool_call"
+  | "tool_result"
+  | "approval_required"
+  | "error"
+  | "token"
+  | "complete";
+
+export interface ToolCallEventData {
+  tool: string;
+  args?: Record<string, unknown>;
+}
+
+export interface ToolResultEventData {
+  tool: string;
+  is_error: boolean;
+}
+
+// node_start/node_end's data — matches graph.NodeTransitionData exactly.
+export interface NodeTransitionEventData {
+  node: RunNodeName;
+  agent_name: string;
+}
+
+// complete's data — matches graph.CompleteData exactly.
+export interface CompleteEventData {
+  output: string;
+  token_usage: { input_tokens: number; output_tokens: number; cached_tokens: number };
+  cost_so_far_usd: number;
+}
+
+// RunEvent.data's shape depends on RunEvent.type: NodeTransitionEventData
+// for node_start/node_end, ToolCallEventData for tool_call,
+// ToolResultEventData for tool_result, CompleteEventData for complete, a
+// plain error string for error, or absent for approval_required. See
+// internal/core/graph's Event/EventBus.
+export interface RunEvent {
+  type: RunEventType;
+  run_id: string;
+  data?: string | NodeTransitionEventData | ToolCallEventData | ToolResultEventData | CompleteEventData;
+  timestamp: string;
+}
+
