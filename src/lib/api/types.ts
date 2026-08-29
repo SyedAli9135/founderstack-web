@@ -150,6 +150,7 @@ export interface WorkflowRun {
 }
 
 export interface RunDetail extends WorkflowRun {
+  current_node?: string;
   triggered_by?: string;
   input_tokens: number;
   output_tokens: number;
@@ -165,12 +166,22 @@ export type RunNodeName = "planner" | "executor" | "approval_gate" | "validator"
 export type RunEventType =
   | "node_start"
   | "node_end"
+  | "reasoning"
   | "tool_call"
   | "tool_result"
   | "approval_required"
   | "error"
   | "token"
   | "complete";
+
+// reasoning's data — the model's own text on a turn, surfaced live even
+// when that turn also requests a tool call (real providers routinely
+// return both — see graph.executorNode's EventReasoning publish). This is
+// the model's stated intent right before it acts, not just its final
+// answer.
+export interface ReasoningEventData {
+  text: string;
+}
 
 export interface ToolCallEventData {
   tool: string;
@@ -180,6 +191,10 @@ export interface ToolCallEventData {
 export interface ToolResultEventData {
   tool: string;
   is_error: boolean;
+  // The tool's actual output (or error text), truncated server-side —
+  // added alongside is_error so the feed can show what actually came
+  // back, not just a bare succeeded/failed flag.
+  result?: string;
 }
 
 // node_start/node_end's data — matches graph.NodeTransitionData exactly.
@@ -203,7 +218,13 @@ export interface CompleteEventData {
 export interface RunEvent {
   type: RunEventType;
   run_id: string;
-  data?: string | NodeTransitionEventData | ToolCallEventData | ToolResultEventData | CompleteEventData;
+  data?:
+    | string
+    | NodeTransitionEventData
+    | ReasoningEventData
+    | ToolCallEventData
+    | ToolResultEventData
+    | CompleteEventData;
   timestamp: string;
 }
 

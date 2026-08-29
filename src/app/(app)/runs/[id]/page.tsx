@@ -50,10 +50,16 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   // output/error text, not the full persisted summary (tokens, cost,
   // duration) — refetch the REST detail once the run reaches a terminal
   // state so the summary panel below reflects what Launcher actually
-  // finalized, not a stale pre-run snapshot.
+  // finalized, not a stale pre-run snapshot. `approval_required` also needs
+  // a refetch: it moves workflow_runs.status to 'awaiting_approval', and
+  // without this the header badge above keeps showing whatever status the
+  // run had when the page first loaded (e.g. "Running") even though the
+  // pipeline card below (driven live off `events`, not this REST data)
+  // correctly shows "Waiting on approval" — a real staleness bug caught
+  // during manual browser verification 2026-08-28.
   const lastEventType = events.length > 0 ? events[events.length - 1].type : null;
   useEffect(() => {
-    if (lastEventType === "complete" || lastEventType === "error") {
+    if (lastEventType === "complete" || lastEventType === "error" || lastEventType === "approval_required") {
       queryClient.invalidateQueries({ queryKey: ["runs", id] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
     }
@@ -126,11 +132,11 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         <p className="mt-1 font-mono text-xs text-muted-foreground">{run.id}</p>
       </div>
 
-      <AgentPipeline events={events} />
+      <AgentPipeline events={events} finalStatus={run.status} finalNode={run.current_node} />
 
       <div>
         <h2 className="mb-2 text-sm font-medium text-foreground">Activity</h2>
-        <LiveFeed events={events} />
+        <LiveFeed events={events} isLive={isLive} />
       </div>
 
       {run.output && (

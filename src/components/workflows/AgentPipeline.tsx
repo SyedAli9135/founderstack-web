@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Brain, Wrench, ShieldCheck, FileCheck, UserCheck, Loader2, Check, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { RunEvent, RunNodeName } from "@/lib/api/types";
+import { RunEvent, RunNodeName, RunStatus } from "@/lib/api/types";
 
 type NodeStatus = "pending" | "active" | "completed" | "failed";
 
@@ -16,6 +16,7 @@ const PIPELINE_NODES: { name: RunNodeName; label: string; icon: LucideIcon }[] =
   { name: "validator", label: "Validator", icon: ShieldCheck },
   { name: "reporter", label: "Reporter", icon: FileCheck },
 ];
+const PIPELINE_ORDER: string[] = PIPELINE_NODES.map((n) => n.name);
 
 function deriveNodeStatuses(events: RunEvent[]): {
   statuses: Record<string, NodeStatus>;
@@ -47,12 +48,56 @@ function deriveNodeStatuses(events: RunEvent[]): {
   return { statuses, awaitingApproval };
 }
 
+/** Fills in nodes the live SSE stream never reported — e.g. the page
+ * mounted after the run (or its early nodes) already finished, since
+ * Engine.Bus doesn't replay past events to a late subscriber. Derived
+ * from the run's REST-persisted final `status`/`current_node`, so it's
+ * necessarily coarser than the live per-node timeline: a `completed` run
+ * must have passed through all 4 nodes (the pipeline is strictly
+ * sequential), so that case is exact. A `failed`/`cancelled` run only
+ * tells us the *last* node the checkpoint recorded — nodes strictly
+ * before it get marked completed, that node itself gets marked failed,
+ * nodes after stay pending (we don't know they never started vs. just
+ * weren't reached — pending is the honest answer either way). Never
+ * overrides a status the live stream actually reported.
+ */
+function backfillFromFinalStatus(finalStatus?: RunStatus, finalNode?: string): Record<string, NodeStatus> {
+  const backfill: Record<string, NodeStatus> = {};
+  if (finalStatus === "completed") {
+    for (const node of PIPELINE_ORDER) backfill[node] = "completed";
+    return backfill;
+  }
+  if (finalStatus === "failed" || finalStatus === "cancelled") {
+    // approval_gate isn't one of the 4 visualized nodes — a run that
+    // stopped there got all the way past executor.
+    const stopIndex = finalNode === "approval_gate" ? 2 : finalNode ? PIPELINE_ORDER.indexOf(finalNode) : -1;
+    if (stopIndex === -1) return backfill;
+    PIPELINE_ORDER.forEach((node, i) => {
+      if (i < stopIndex) backfill[node] = "completed";
+      else if (i === stopIndex) backfill[node] = "failed";
+    });
+  }
+  return backfill;
+}
+
 /** Row of node-state cards — pulses the active node, checks off completed
  * ones, flags a failure. See WORKFLOW_PLAN_GO.md's Workflow 9 acceptance
  * criteria ("show which agent node is currently active... so the founder
  * knows the system hasn't hung"). */
-export function AgentPipeline({ events }: { events: RunEvent[] }) {
-  const { statuses, awaitingApproval } = useMemo(() => deriveNodeStatuses(events), [events]);
+export function AgentPipeline({
+  events,
+  finalStatus,
+  finalNode,
+}: {
+  events: RunEvent[];
+  finalStatus?: RunStatus;
+  finalNode?: string;
+}) {
+  const { statuses: liveStatuses, awaitingApproval } = useMemo(() => deriveNodeStatuses(events), [events]);
+  const backfill = useMemo(() => backfillFromFinalStatus(finalStatus, finalNode), [finalStatus, finalNode]);
+  // Live-derived status always wins where we have it; backfill only fills
+  // in nodes the stream never reported anything for.
+  const statuses = useMemo(() => ({ ...backfill, ...liveStatuses }), [backfill, liveStatuses]);
 
   return (
     <div className="space-y-3">
