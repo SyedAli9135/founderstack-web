@@ -7,8 +7,9 @@ import { useRun, useCancelRun } from "@/hooks/useRuns";
 import { useWorkflowStream } from "@/hooks/useWorkflowStream";
 import { AgentPipeline } from "@/components/workflows/AgentPipeline";
 import { LiveFeed } from "@/components/workflows/LiveFeed";
+import { ApprovalCard } from "@/components/approvals/ApprovalCard";
 import { Button } from "@/components/ui/button";
-import { RunStatus } from "@/lib/api/types";
+import { ApprovalRequiredEventData, RunStatus } from "@/lib/api/types";
 import { Loader2, ArrowLeft, Ban, Wifi, WifiOff } from "lucide-react";
 
 const LIVE_STATUSES: RunStatus[] = ["pending", "running", "awaiting_approval"];
@@ -67,6 +68,19 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   }, [lastEventType, id]);
 
   const cost = useMemo(() => (run ? `$${run.cost_so_far_usd.toFixed(4)}` : null), [run]);
+
+  // The approval_required event carries everything ApprovalCard needs
+  // (id, risk, the pending tool-call batch) — no extra GET /approvals/{id}
+  // fetch for the inline live-run case. run.status is the authoritative
+  // "is this still pending" signal (refetched via the effect above the
+  // instant a decision resumes the run), not just "did this event fire" —
+  // once resumed, the run moves past awaiting_approval even though the
+  // event itself stays in the stream's history.
+  const pendingApproval = useMemo(() => {
+    if (run?.status !== "awaiting_approval") return null;
+    const last = [...events].reverse().find((ev) => ev.type === "approval_required");
+    return last ? (last.data as ApprovalRequiredEventData) : null;
+  }, [events, run?.status]);
 
   if (isLoading) {
     return (
@@ -133,6 +147,17 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       </div>
 
       <AgentPipeline events={events} finalStatus={run.status} finalNode={run.current_node} />
+
+      {pendingApproval && (
+        <ApprovalCard
+          approval={{
+            id: pendingApproval.approval_id,
+            risk_level: pendingApproval.risk_level,
+            context_data: pendingApproval.tool_calls,
+            status: "pending",
+          }}
+        />
+      )}
 
       <div>
         <h2 className="mb-2 text-sm font-medium text-foreground">Activity</h2>

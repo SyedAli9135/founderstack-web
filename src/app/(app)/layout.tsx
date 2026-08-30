@@ -5,7 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { OnboardingShield } from "@/components/auth/OnboardingShield";
-import { LayoutDashboard, Bot, Puzzle, KeyRound, Menu, FileText, Workflow, History } from "lucide-react";
+import { PushPermissionPrompt } from "@/components/approvals/PushPermissionPrompt";
+import { usePendingApprovals } from "@/hooks/useApprovals";
+import {
+  LayoutDashboard,
+  Bot,
+  Puzzle,
+  KeyRound,
+  Menu,
+  FileText,
+  Workflow,
+  History,
+  ShieldAlert,
+  BellRing,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,21 +28,27 @@ const navItems = [
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/workflows", label: "Workflows", icon: Workflow },
   { href: "/runs", label: "Runs", icon: History },
+  { href: "/approvals", label: "Approvals", icon: ShieldAlert },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/integrations", label: "Integrations", icon: Puzzle },
 ];
 
-const settingsItems = [{ href: "/settings/api-key", label: "LLM Providers", icon: KeyRound }];
+const settingsItems = [
+  { href: "/settings/api-key", label: "LLM Providers", icon: KeyRound },
+  { href: "/settings/notifications", label: "Notifications", icon: BellRing },
+];
 
 function NavLink({
   href,
   label,
   icon: Icon,
+  badge,
   onNavigate,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
+  badge?: number;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -46,17 +65,32 @@ function NavLink({
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {label}
+      <span className="flex-1">{label}</span>
+      {!!badge && (
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
+  // Polled, not SSE-driven — the badge just needs to be roughly current,
+  // and every other page reads it the same way (see usePendingApprovals'
+  // own refetchInterval reasoning).
+  const { data: pendingApprovals } = usePendingApprovals();
+
   return (
     <>
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
-          <NavLink key={item.href} {...item} onNavigate={onNavigate} />
+          <NavLink
+            key={item.href}
+            {...item}
+            badge={item.href === "/approvals" ? pendingApprovals?.length : undefined}
+            onNavigate={onNavigate}
+          />
         ))}
       </nav>
 
@@ -112,6 +146,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 overflow-y-auto p-6">{children}</div>
         </main>
       </div>
+      <PushPermissionPrompt />
     </OnboardingShield>
   );
 }

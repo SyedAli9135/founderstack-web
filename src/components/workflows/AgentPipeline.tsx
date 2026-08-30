@@ -113,9 +113,8 @@ export function AgentPipeline({
           <div>
             <p className="text-sm font-medium text-foreground">Waiting on approval</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              This run wants to take an action that always requires a human decision. Approving
-              or rejecting from this page isn&apos;t available yet — that arrives in a future
-              update.
+              This run wants to take an action that always requires a human decision — decide
+              below.
             </p>
           </div>
         </div>

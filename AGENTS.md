@@ -67,9 +67,8 @@ state correctly" bugs:
 **`AgentPipeline.tsx`** renders the 4 nodes actually built server-side
 (`planner`/`executor`/`validator`/`reporter` — no `rag_retriever` yet), each a card with
 pending/active/completed/failed states (lucide icons + the token palette, not a
-glow-ring/pulse-animation look). Shows a "Waiting on approval" panel when the run has suspended —
-honestly notes that approving/rejecting isn't available from this page yet (workflow 10 isn't
-built), rather than showing a fake control.
+glow-ring/pulse-animation look). Shows a "Waiting on approval" panel when the run has suspended;
+as of workflow 10 the actual decision controls render just below it — see that section.
 
 **`LiveFeed.tsx`** is the auto-scrolling raw event log behind the pipeline's summarized state.
 As of 2026-08-28 it renders two additional event types beyond the original
@@ -99,3 +98,79 @@ MCP tool except LinkedIn's `draft_post`). Prefer clicking through a `[TEST] *` w
 now" button over writing new frontend tests for this feature — the real value here is confirming
 the live SSE UI behaves correctly against a real running backend, which is exactly what a unit
 test can't catch (see the two bugs above, neither of which any existing test suite found).
+
+## Workflow 10 — approval decisions (`src/hooks/useApprovals.ts`, `src/hooks/usePushSubscription.ts`,
+`src/components/approvals/{ApprovalCard,PushPermissionPrompt}.tsx`, `src/app/(app)/approvals/`,
+`src/app/(app)/settings/notifications/page.tsx`, `public/sw.js`)
+
+**`/settings/notifications` (added 2026-08-30, a real gap caught by the founder, not built in the
+original pass)** — the backend's `GET/PUT /api/v1/settings/approvals` endpoint existed from the
+start of this workflow, but nothing in the frontend ever called it; the only way to set an org's
+approvals Slack channel was a raw `curl`. `src/hooks/useApprovalSettings.ts` +
+`settings/notifications/page.tsx` close that: a plain text input (channel name or ID) + Save,
+plus the same push-notification "Enable" control `PushPermissionPrompt` uses, reachable from the
+sidebar's Settings section. The input intentionally isn't seeded via a `useEffect` (`value =
+edited ?? data?.slack_channel_id ?? ""`, `edited` starts `undefined`) — this codebase already hit
+the `react-hooks/set-state-in-effect` lint rule once during workflow 9 and the fix here avoids
+re-hitting it, not just working around a lint error blind.
+
+Closes workflow 9's own "approving or rejecting isn't available from this page yet" gap.
+`ApprovalCard` is used two ways from one component: inline on a live run
+(`runs/[id]/page.tsx`, built straight from the `approval_required` SSE event's data — no extra
+`GET /approvals/{id}` fetch, since the backend's `ApprovalRequiredData` and `approvalSummary` are
+wire-identical) and on `/approvals` (built from `GET /approvals` rows, tabbed Pending/Past). A
+decided card (on `/approvals`, `status !== "pending"`) is wrapped in a `Link` out to its run;
+a still-pending card never is — its own Approve/Reject buttons would otherwise nest inside the
+anchor, which is invalid HTML and would fire an unwanted navigation on every click (caught before
+it shipped, not live).
+
+**A real, non-obvious bug found live 2026-08-30, the same way workflow 9's two bugs were —
+`tsc`/lint/build all stayed green through it.** `useApprovals.ts`'s `useDecideApproval` originally
+attempted an optimistic update: on `onMutate`, `queryClient.setQueriesData({queryKey:
+["approvals"]}, (old) => old?.filter(...))`. This throws — `old?.filter is not a function` — the
+instant `useApproval(id)`'s single-approval detail query (`["approvals", id]`, cache value a bare
+`Approval` object) is also mounted, since the partial key `["approvals"]` matches *every*
+query prefixed with it, including that one, and an object has no `.filter`. Worse than a visible
+crash: **React Query calls `onMutate` before `mutationFn`**, so a thrown `onMutate` aborts the
+mutation before the real `fetch` ever runs — Approve/Reject looked like they simply did nothing
+(no network request at all, confirmed via the browser's own network panel), with no console error
+and no toast, since the failure happens before any of that machinery runs. Root cause: the
+optimistic-update code assumed the cache's value was the *selected* shape (`Approval[]`, what
+`useQuery`'s `select` option hands to a component) rather than its *real* raw shape (the API
+envelope, `{ approvals: Approval[] }` for the list queries) — `select` transforms what a
+component reads, never what's actually stored in the cache `setQueriesData`/`getQueriesData`
+operate on. Fixed by dropping the optimistic update entirely, matching `useRuns.ts`'s
+`useCancelRun` (which never attempted one for the same reason) — `onSuccess` just invalidates
+`["approvals"]` and `["runs"]`. Live-verified afterward end-to-end: a real `[TEST] approval` run's
+Approve resumed it to a completed refund; a fresh run's Reject-with-a-typed-reason resumed it to
+"Run stopped: ... Reason: \<the typed reason\>" with `tool_call_count: 0`.
+
+**The push notification's Approve/Reject buttons work without opening the app — `public/sw.js`,
+not React.** A service worker's `notificationclick` handler has no access to page JS state (no
+live Clerk session, no `NEXT_PUBLIC_*` env vars baked into a static file at build time), so it
+can't call the backend the normal authenticated way. The push payload itself carries full,
+ready-to-POST `approve_url`/`reject_url` (already signed with a single-purpose action token) built
+server-side (`founderstack-api-go`'s `internal/core/notify` — see that repo's `CLAUDE.md`) — the
+service worker's `notificationclick` handler just `fetch()`s whichever URL matches the tapped
+action, with a fixed default reason (`"Rejected via push notification"`) on reject, since there's
+no UI in a notification to collect one. Clicking the notification body itself (not an action
+button) opens/focuses `/approvals` instead — the normal authenticated path.
+`usePushSubscription.ts` registers the worker, requests permission, and POSTs the resulting
+`PushSubscription` to `/settings/push-subscription`; `NEXT_PUBLIC_VAPID_PUBLIC_KEY` must match the
+backend's `WEBPUSH_VAPID_PUBLIC_KEY` (same keypair) or every `subscribe()` call fails silently
+against the browser's push service. `PushPermissionPrompt` is a dismissible bottom-right banner
+(not a modal), shown 30s after the app shell mounts, once per browser via a `localStorage` flag —
+per-viewer convenience state, not synced anywhere, matching this codebase's own guidance on what
+`localStorage` is and isn't for.
+
+**Known, deliberate gaps**: no Slack-native interactive Approve/Reject buttons (notification-only
+by design — see `founderstack-api-go/CLAUDE.md`'s Workflow 10 section for why); no broader
+"what's my agent up to" activity feed beyond approvals themselves (explicitly deferred, a
+separate, smaller feature).
+
+**Verification method**: same as workflow 9 — `MOCK_LLM_MODE=true`, the existing `[TEST]
+approval` mock-scenario workflow, driven through the real browser UI (both a full approve and a
+full reject leg, not just one). Email (Brevo) and push delivery themselves need real
+`BREVO_API_KEY`/`WEBPUSH_VAPID_*` credentials neither server has configured yet in this
+environment — the decision *mechanism* (this section's bug and fix) is what's been live-verified;
+actual email/push delivery still needs a real account signed up and configured to verify further.

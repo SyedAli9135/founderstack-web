@@ -210,11 +210,20 @@ export interface CompleteEventData {
   cost_so_far_usd: number;
 }
 
+// approval_required's data — matches graph.ApprovalRequiredData exactly.
+// Carries everything ApprovalCard needs to render inline the moment a run
+// suspends, without a second GET /approvals/{id} round trip.
+export interface ApprovalRequiredEventData {
+  approval_id: string;
+  risk_level: RiskLevel;
+  tool_calls: { id: string; name: string; args?: Record<string, unknown> }[];
+}
+
 // RunEvent.data's shape depends on RunEvent.type: NodeTransitionEventData
 // for node_start/node_end, ToolCallEventData for tool_call,
-// ToolResultEventData for tool_result, CompleteEventData for complete, a
-// plain error string for error, or absent for approval_required. See
-// internal/core/graph's Event/EventBus.
+// ToolResultEventData for tool_result, CompleteEventData for complete,
+// ApprovalRequiredEventData for approval_required, or a plain error string
+// for error. See internal/core/graph's Event/EventBus.
 export interface RunEvent {
   type: RunEventType;
   run_id: string;
@@ -224,7 +233,25 @@ export interface RunEvent {
     | ReasoningEventData
     | ToolCallEventData
     | ToolResultEventData
-    | CompleteEventData;
+    | CompleteEventData
+    | ApprovalRequiredEventData;
   timestamp: string;
+}
+
+// Workflow 10 — matches internal/api/approvals/handler.go's
+// approvalSummary exactly. context_data is the pending tool-call batch
+// (same shape as ApprovalRequiredEventData.tool_calls), sent as raw JSON
+// bytes by the backend rather than a typed field.
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+export type RiskLevel = "read" | "write_reversible" | "write_destructive_or_financial";
+
+export interface Approval {
+  id: string;
+  run_id: string;
+  status: ApprovalStatus;
+  risk_level: RiskLevel;
+  context_data: { id: string; name: string; args?: Record<string, unknown> }[];
+  expires_at?: string;
+  created_at: string;
 }
 
