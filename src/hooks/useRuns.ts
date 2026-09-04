@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, ApiError } from "@/lib/api/client";
-import { RunDetail, RunStatus, WorkflowRun } from "@/lib/api/types";
+import { RunCost, RunDetail, RunStatus, WorkflowRun, WorkflowStep } from "@/lib/api/types";
 import { toast } from "sonner";
 
 export function useRuns(filters?: { status?: RunStatus; workflow_id?: string }) {
@@ -28,6 +28,29 @@ export function useRun(id: string | null) {
   return useQuery({
     queryKey: ["runs", id],
     queryFn: () => api.get<RunDetail>(`/runs/${id}`),
+    enabled: !!id,
+  });
+}
+
+// Steps/cost are only ever meaningful once a run is terminal (or at least
+// has done something) — both are read once on mount, not polled, since
+// live progress already comes from useWorkflowStream's SSE feed, not these
+// REST endpoints.
+export function useRunSteps(id: string | null) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: ["runs", id, "steps"],
+    queryFn: () => api.get<{ steps: WorkflowStep[] }>(`/runs/${id}/steps`),
+    select: (res) => res.steps,
+    enabled: !!id,
+  });
+}
+
+export function useRunCost(id: string | null) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: ["runs", id, "cost"],
+    queryFn: () => api.get<RunCost>(`/runs/${id}/cost`),
     enabled: !!id,
   });
 }

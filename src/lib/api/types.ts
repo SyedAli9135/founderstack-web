@@ -163,6 +163,44 @@ export interface RunDetail extends WorkflowRun {
 // suspends the run for a human decision.
 export type RunNodeName = "planner" | "executor" | "approval_gate" | "validator" | "reporter";
 
+// workflow 11's persisted trace — matches GET /runs/{id}/steps' workflowStep
+// exactly. Distinct from RunEvent above: this is the durable Postgres
+// record (available after a run finishes, or for a run whose live SSE
+// events never arrived), not the live stream.
+export type StepType = "planning" | "reasoning" | "tool_call" | "approval" | "validation" | "report";
+
+export interface WorkflowStep {
+  node_name: RunNodeName;
+  step_type: StepType;
+  agent_name?: string;
+  input_data?: Record<string, unknown>;
+  output_data?: Record<string, unknown>;
+  input_tokens?: number;
+  output_tokens?: number;
+  duration_ms?: number;
+  status?: "completed" | "failed";
+  created_at: string;
+}
+
+// matches GET /runs/{id}/cost's costBreakdownItem — cost_ledger only ever
+// writes llm_inference/tool_call today (see internal/api/runs/handler.go's
+// Cost doc comment); embedding/reranking exist as possible cost_type
+// values but have no writer until workflow 12's RAG-query path lands.
+export type CostType = "llm_inference" | "tool_call" | "embedding" | "reranking";
+
+export interface RunCostItem {
+  cost_type: CostType;
+  total_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+}
+
+export interface RunCost {
+  items: RunCostItem[];
+  total_usd: number;
+}
+
 export type RunEventType =
   | "node_start"
   | "node_end"

@@ -3,14 +3,23 @@
 import { use, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRun, useCancelRun } from "@/hooks/useRuns";
+import { useRun, useCancelRun, useRunSteps, useRunCost } from "@/hooks/useRuns";
 import { useWorkflowStream } from "@/hooks/useWorkflowStream";
 import { AgentPipeline } from "@/components/workflows/AgentPipeline";
 import { LiveFeed } from "@/components/workflows/LiveFeed";
+import { RunTimeline } from "@/components/workflows/RunTimeline";
+import { CostBreakdown } from "@/components/analytics/CostBreakdown";
 import { ApprovalCard } from "@/components/approvals/ApprovalCard";
 import { Button } from "@/components/ui/button";
 import { ApprovalRequiredEventData, RunStatus } from "@/lib/api/types";
-import { Loader2, ArrowLeft, Ban, Wifi, WifiOff } from "lucide-react";
+import { Loader2, ArrowLeft, Ban, Wifi, WifiOff, ExternalLink } from "lucide-react";
+
+// Optional: a self-hosted trace viewer (Jaeger/Grafana Tempo, fed by an
+// OTel export this backend doesn't wire up yet — see founderstack-api-go's
+// CLAUDE.md Dependency policy, "sentry-go and otel are still planned but
+// not yet in go.mod"). Only render the link once that URL is actually
+// configured, rather than pointing at a page that doesn't exist yet.
+const TRACE_VIEWER_URL = process.env.NEXT_PUBLIC_TRACE_VIEWER_URL;
 
 const LIVE_STATUSES: RunStatus[] = ["pending", "running", "awaiting_approval"];
 
@@ -43,6 +52,8 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const { data: run, isLoading, error } = useRun(id);
   const cancelMutation = useCancelRun();
   const queryClient = useQueryClient();
+  const { data: steps, isLoading: stepsLoading } = useRunSteps(id);
+  const { data: cost, isLoading: costLoading } = useRunCost(id);
 
   const isLive = run ? LIVE_STATUSES.includes(run.status) : false;
   const { events, connectionState } = useWorkflowStream(isLive ? id : null);
@@ -61,13 +72,17 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   const lastEventType = events.length > 0 ? events[events.length - 1].type : null;
   useEffect(() => {
     if (lastEventType === "complete" || lastEventType === "error" || lastEventType === "approval_required") {
+      // Prefix match (default exact: false) — also covers ["runs", id,
+      // "steps"]/["runs", id, "cost"] (workflow 11's persisted trace,
+      // written incrementally as the run executes), so those refetch too
+      // instead of staying stuck at whatever existed at page-load time.
       queryClient.invalidateQueries({ queryKey: ["runs", id] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEventType, id]);
 
-  const cost = useMemo(() => (run ? `$${run.cost_so_far_usd.toFixed(4)}` : null), [run]);
+  const costSoFar = useMemo(() => (run ? `$${run.cost_so_far_usd.toFixed(4)}` : null), [run]);
 
   // The approval_required event carries everything ApprovalCard needs
   // (id, risk, the pending tool-call batch) — no extra GET /approvals/{id}
@@ -173,8 +188,33 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         </div>
       )}
 
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-foreground">Trace</h2>
+          {TRACE_VIEWER_URL && (
+            <a
+              href={`${TRACE_VIEWER_URL}${run.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Open in trace viewer
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+        <RunTimeline steps={steps} isLoading={stepsLoading} />
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-sm font-medium text-foreground">Cost breakdown</h2>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <CostBreakdown items={cost?.items} totalUSD={cost?.total_usd} isLoading={costLoading} />
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 border-t border-border pt-6 sm:grid-cols-4">
-        <Stat label="Cost so far" value={cost ?? "—"} />
+        <Stat label="Cost so far" value={costSoFar ?? "—"} />
         <Stat label="Tool calls" value={String(run.tool_call_count)} />
         <Stat label="Tokens (in / out)" value={`${run.input_tokens} / ${run.output_tokens}`} />
         <Stat label="Duration" value={formatDuration(run.duration_ms) ?? "—"} />
