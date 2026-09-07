@@ -314,3 +314,36 @@ export interface Approval {
   created_at: string;
 }
 
+// Workflow 13 (team members & roles). "owner" and "admin" are treated as
+// equivalent everywhere this app gates on org-administration — Clerk's own
+// default role for whoever creates an org is "admin," not a distinct
+// "owner" — see founderstack-api-go's authctx.User.IsOwnerOrAdmin.
+export type TeamRole = "owner" | "admin" | "member" | "viewer";
+
+export interface TeamMember {
+  id: string;
+  clerk_user_id: string;
+  email: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  role: TeamRole;
+  can_manage_api_keys: boolean;
+  can_manage_integrations: boolean;
+  can_approve_workflows: boolean;
+  last_login_at?: string | null;
+  created_at: string;
+}
+
+// PendingInvitation.role is Clerk's own raw role string (e.g. "org:member")
+// — invitations are created through Clerk's own OrganizationProfile modal,
+// not this app's PATCH .../role, so it's never guaranteed to be one of
+// this app's own TeamRole values.
+export interface PendingInvitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  created_at: string;
+  expires_at?: string | null;
+}
+

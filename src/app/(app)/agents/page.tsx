@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAgents, useDeleteAgent } from "@/hooks/useAgents";
+import { usePermissions } from "@/hooks/useTeam";
 import { Agent } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Bot, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 
-function AgentCard({ agent }: { agent: Agent }) {
+function AgentCard({ agent, canModify }: { agent: Agent; canModify: boolean }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const deleteMutation = useDeleteAgent();
 
@@ -36,7 +37,9 @@ function AgentCard({ agent }: { agent: Agent }) {
       </div>
 
       <div className="mt-4">
-        {confirmingDelete ? (
+        {!canModify ? (
+          <p className="text-right text-xs text-muted-foreground">View only</p>
+        ) : confirmingDelete ? (
           <div className="space-y-2">
             {agent.workflow_count > 0 && (
               <p className="text-xs text-destructive">
@@ -88,6 +91,7 @@ function AgentCard({ agent }: { agent: Agent }) {
 
 export default function AgentsPage() {
   const { data: agents, isLoading, error } = useAgents();
+  const { canModifyAgents } = usePermissions();
 
   if (isLoading) {
     return (
@@ -117,12 +121,14 @@ export default function AgentsPage() {
             Configure who does what — name, instructions, and which tools each agent can use.
           </p>
         </div>
-        <Link href="/agents/new">
-          <Button>
-            <Plus className="mr-1.5 h-4 w-4" />
-            New agent
-          </Button>
-        </Link>
+        {canModifyAgents && (
+          <Link href="/agents/new">
+            <Button>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New agent
+            </Button>
+          </Link>
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -130,19 +136,22 @@ export default function AgentsPage() {
           <Bot className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">No agents yet</p>
           <p className="max-w-xs text-xs text-muted-foreground">
-            Create your first agent — give it a system prompt and a set of tools it&apos;s allowed
-            to use.
+            {canModifyAgents
+              ? "Create your first agent — give it a system prompt and a set of tools it's allowed to use."
+              : "An owner or admin hasn't created any agents yet."}
           </p>
-          <Link href="/agents/new">
-            <Button size="sm" variant="outline" className="mt-2">
-              New agent
-            </Button>
-          </Link>
+          {canModifyAgents && (
+            <Link href="/agents/new">
+              <Button size="sm" variant="outline" className="mt-2">
+                New agent
+              </Button>
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
+            <AgentCard key={agent.id} agent={agent} canModify={canModifyAgents} />
           ))}
         </div>
       )}

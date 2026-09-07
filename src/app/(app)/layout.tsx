@@ -7,6 +7,7 @@ import { UserButton } from "@clerk/nextjs";
 import { OnboardingShield } from "@/components/auth/OnboardingShield";
 import { PushPermissionPrompt } from "@/components/approvals/PushPermissionPrompt";
 import { usePendingApprovals } from "@/hooks/useApprovals";
+import { usePendingInvitations } from "@/hooks/usePendingInvitations";
 import {
   LayoutDashboard,
   Bot,
@@ -18,6 +19,8 @@ import {
   History,
   ShieldAlert,
   BellRing,
+  Users,
+  Mail,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,11 +34,13 @@ const navItems = [
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/integrations", label: "Integrations", icon: Puzzle },
+  { href: "/invitations", label: "Invitations", icon: Mail },
 ];
 
 const settingsItems = [
   { href: "/settings/api-key", label: "LLM Providers", icon: KeyRound },
   { href: "/settings/notifications", label: "Notifications", icon: BellRing },
+  { href: "/settings/team", label: "Team", icon: Users },
 ];
 
 function NavLink({
@@ -80,17 +85,21 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   // and every other page reads it the same way (see usePendingApprovals'
   // own refetchInterval reasoning).
   const { data: pendingApprovals } = usePendingApprovals();
+  // Pure Clerk data, no backend call — safe here even though this sidebar
+  // only ever mounts for a user OnboardingShield has already confirmed has
+  // a synced org (see that component's hasNoOrg gate).
+  const { invitations: pendingInvitations } = usePendingInvitations();
+
+  const badgeCounts: Record<string, number | undefined> = {
+    "/approvals": pendingApprovals?.length,
+    "/invitations": pendingInvitations.length,
+  };
 
   return (
     <>
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
-          <NavLink
-            key={item.href}
-            {...item}
-            badge={item.href === "/approvals" ? pendingApprovals?.length : undefined}
-            onNavigate={onNavigate}
-          />
+          <NavLink key={item.href} {...item} badge={badgeCounts[item.href]} onNavigate={onNavigate} />
         ))}
       </nav>
 

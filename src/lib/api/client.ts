@@ -39,6 +39,13 @@ export class ApiError extends Error {
   }
 }
 
+// Codes RequireAuth returns for a signed-in Clerk user with no resolvable
+// local org context yet — expected and transient for a few seconds right
+// after accepting an invitation (see src/lib/api/orgSync.ts, which is what
+// actually polls through this state), not a real fault worth logging.
+// Exported so orgSync.ts has one source of truth instead of a duplicate list.
+export const EXPECTED_TRANSIENT_CODES = new Set(["USER_NOT_SYNCHRONIZED", "ORGANIZATION_NOT_FOUND"]);
+
 export function useApiClient() {
   const { getToken } = useAuth();
 
@@ -64,7 +71,9 @@ export function useApiClient() {
       const requestId = response.headers.get("X-Request-ID") || body.error?.request_id;
       const error = new ApiError(message, response.status, body.error?.code, requestId);
 
-      console.error(`[API Error]${requestId ? ` (ReqID: ${requestId})` : ""} ${message}`);
+      if (!error.code || !EXPECTED_TRANSIENT_CODES.has(error.code)) {
+        console.error(`[API Error]${requestId ? ` (ReqID: ${requestId})` : ""} ${message}`);
+      }
       throw error;
     }
 

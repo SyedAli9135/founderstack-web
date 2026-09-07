@@ -4,17 +4,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, ApiError } from "@/lib/api/client";
 import { LLMProvider } from "@/lib/api/types";
 
-export function useLLMProviders() {
+// refetchInterval defaults to off — OnboardingShield only needs this once
+// per protected-route mount. The invitations page passes a real interval
+// while actively waiting for a just-accepted membership's webhook sync to
+// land (see src/lib/api/orgSync.ts).
+export function useLLMProviders(options?: { refetchInterval?: number | false }) {
   const api = useApiClient();
   return useQuery({
     queryKey: ["llm-providers"],
     queryFn: () => api.get<LLMProvider[]>("/settings/api-key/providers"),
     // Both submit/delete mutations below invalidate this key explicitly,
     // so a long staleTime only affects passive background refetching, not
-    // freshness after an actual change. OnboardingShield polls this on
-    // every protected-route mount; it doesn't need to re-fetch every few
-    // seconds.
+    // freshness after an actual change.
     staleTime: 5 * 60 * 1000,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 }
 

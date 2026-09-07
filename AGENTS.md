@@ -235,3 +235,140 @@ trying a range of literal, paraphrased, and no-match queries) instead of a live-
 here. Backend side (the ACL/cache-isolation/audit-log bugs found and fixed, real end-to-end
 timing against live Cohere/Pinecone/Redis) is documented in `founderstack-api-go/CLAUDE.md`'s
 "Search Knowledge Base / RAG Query (workflow 12)" section.
+
+## Workflow 13 — team members & roles (`src/hooks/useTeam.ts`,
+`src/app/(app)/settings/team/page.tsx`)
+
+`usePermissions()` is the one new piece every permission-gated page in this app now depends on —
+it derives the signed-in user's own role by matching Clerk's own `useUser().user.id` against
+`GET /org/members`'s member list (`clerk_user_id` field), not a separate `/org/me` endpoint. No
+new endpoint was needed: every page that gates on permissions also needs the team roster fetched
+anyway, and React Query dedupes the underlying `["org", "members"]` query across every caller.
+Returns `{ role, isOwnerOrAdmin, canModifyAgents, canModifyWorkflows, canTriggerWorkflows,
+canManageAPIKeys, canManageIntegrations, isLoading }` — `canModifyAgents`/`canModifyWorkflows`/
+`canTriggerWorkflows` are pure functions of `role` (mirroring `authctx.User`'s own Go-side helpers
+exactly — `canModifyWorkflows` added 2026-09-07 alongside the backend's own
+`CanModifyWorkflows()`, see that section's write-up in `founderstack-api-go/CLAUDE.md`),
+`canManageAPIKeys`/`canManageIntegrations` read the member's own boolean flags from the API
+response.
+
+**"Invite Member" opens Clerk's real `<OrganizationProfile />` modal** (`useClerk()
+.openOrganizationProfile()`), not a custom invite form — this app has never used any Clerk
+organization UI before (`<OrganizationSwitcher>`, `<OrganizationProfile>`, `useOrganization()`
+were all unused prior to this workflow; the app's only prior Clerk usage was `<ClerkProvider>`,
+the sign-in/sign-up pages, and `<UserButton>`), but Clerk already owns the real invite-email flow
+end to end, so no reason to rebuild it just to stay "consistent" with this app's own custom-UI
+convention elsewhere.
+
+**`/settings/team`'s table**: avatar (Clerk-hosted image if `avatar_url` is set, else initials —
+first-plus-last-name or the first 2 characters of the email), name/email, a role dropdown (only
+rendered for an owner/admin viewing someone *else's* row — the signed-in user's own row always
+shows a plain badge, matching the backend's own "cannot remove/demote yourself via this endpoint"
+guard), last login (formatted date or "Never" — `last_login_at` had no write path anywhere before
+this workflow, see `founderstack-api-go/CLAUDE.md`'s Workflow 13 section), and a remove button
+with the same inline-confirm pattern `DocumentRow`/`AgentCard` already use elsewhere in this app.
+Removal is a plain `invalidateQueries` on success, not an optimistic update — this codebase's own
+established caution after workflow 10's `onMutate`-before-`mutationFn` bug (see this file's own
+Workflow 10 section).
+
+**Enforcement added to 2 other pages, both new to this workflow** (neither page gated on
+permissions before this): `/agents` hides "New agent," an agent card's Edit/Delete controls (shows
+"View only" instead) for anyone without `canModifyAgents`; `/workflows` hides "Run now" for a
+viewer (`canTriggerWorkflows`). Both are the FE mirror of a real backend 403 — a viewer/member
+who bypasses the UI (a direct API call, or navigating straight to `/agents/new`) still gets
+blocked server-side; this is convenience/clarity in the UI, not the actual enforcement boundary.
+`/agents/new` itself is not separately guarded against direct navigation — a viewer who navigates
+there directly can still see the create form, they just get a real 403 on submit. Left as a minor,
+deliberate gap rather than adding a redirect for a path the sidebar/list page already hides.
+
+**A real gap in the above, found and closed 2026-09-07: `/workflows` only ever gated "Run now" —
+the pause/resume toggle, Delete, and "New workflow" had no permission check at all, matching a
+real backend gap (`Create`/`Update`/`Delete` had no server-side guard either — see
+`founderstack-api-go/CLAUDE.md`'s workflow 13 section for that half of the fix).** Found live: the
+founder, testing the invitation flow with a real second (member/viewer) account, asked whether a
+viewer should be able to delete a workflow. Fixed with the new `canModifyWorkflows` (above): the
+top and empty-state "New workflow" buttons and a card's Delete button now require it; the
+pause/resume toggle switch renders as a static, non-interactive dot (still showing active/paused
+state) instead of a real `<button>` when the signed-in user can't modify workflows. `canTrigger`
+and `canModify` are deliberately independent props on `WorkflowCard` — a member sees "Run now" but
+not Delete/the toggle; a viewer sees neither and gets a plain "View only" label instead.
+
+**Verification method**: `tsc`/`lint`/`build` all pass clean, but **this UI was not visually
+verified in a real browser this session** — Claude-in-Chrome remained disconnected (same as
+workflow 12's pass). Backend side (the admin/owner-equivalence design, the
+`can_manage_api_keys`/`can_manage_integrations` regression caught and backfilled before shipping,
+the Clerk-removal-ordering/resurrection-risk reasoning) is documented in
+`founderstack-api-go/CLAUDE.md`'s "Manage Team Members & Roles (workflow 13)" section.
+
+**Recipient-side invitations (`src/hooks/usePendingInvitations.ts`,
+`src/components/organizations/InvitationsList.tsx`, `src/app/invitations/page.tsx`), added
+2026-09-07, reworked the same day after a live bug** — closes a gap this workflow's own
+`PendingInvitationsCard` didn't: that card shows an *admin* their own sent invitations
+(backend-mediated, `GET /org/invitations`); nothing showed an *invitee* their own received
+invitation from inside this app at all — the only path was Clerk's emailed accept link.
+
+**`/invitations` is a standalone top-level route (`src/app/invitations/`), deliberately outside
+both `(app)` and `(auth)`.** A user with a purely pending invitation has no backend-synced `users`
+row yet — that row is only created once `organizationMembership.created` fires on acceptance — so
+it must never depend on `AppLayout`/`OnboardingShield` or any backend call. It talks to Clerk only
+(`useOrganizationList({ userInvitations: ... })` via `usePendingInvitations`, `useUser()`), so it
+renders correctly regardless of whether this app's backend has ever seen the signed-in Clerk user.
+`(app)/layout.tsx`'s sidebar also links here (with a pending-count badge, same pattern as
+Approvals') for the case of an already-onboarded member getting invited to a *second* org.
+
+**First shipped as a global banner mounted in the root layout — reverted after it caused a real
+production incident, not preemptively.** A banner rendered above `{children}` in
+`src/app/providers.tsx` meant the *rest* of the tree — the full `(app)` shell, sidebar included —
+still mounted underneath it for a recipient with no synced org, and every org-scoped hook across
+that shell (`OnboardingShield`'s own provider check, the sidebar's pending-approvals poll, whatever
+the landed-on page itself queried) fired its own doomed `401 USER_NOT_SYNCHRONIZED`/
+`404 ORGANIZATION_NOT_FOUND` request — doubled by React Query's default `retry: 1`, which doesn't
+know a 4xx will never succeed on retry. In practice this froze the tab under a burst of ~13 failed
+requests before `OnboardingShield`'s redirect effect could untangle it. Fixed two ways, both now
+load-bearing beyond just this feature: (1) `providers.tsx`'s `QueryClient` no longer retries any
+`ApiError` in the 4xx range; (2) `OnboardingShield.tsx` now inspects `useLLMProviders`'s error
+`code` directly — `USER_NOT_SYNCHRONIZED`/`ORGANIZATION_NOT_FOUND` means "no resolvable org," and
+in that state it renders a bare spinner instead of `children`, then `router.replace("/invitations")`
+(previously it always rendered `children` immediately once `isLoading` was false, regardless of an
+error — the actual root cause, since that's what let the whole shell mount for a single render
+before the redirect took effect). An org-less user now lands on `/invitations` instead of
+thrashing between `(app)`'s protected routes and `/onboarding` (which itself issues more org-scoped
+queries via `useIntegrations`, compounding the same failure).
+
+**"Reject" is a local-only dismiss, not a real Clerk API call — deliberately, not a shortcut.**
+Checked `UserOrganizationInvitationResource`'s actual type definition
+(`@clerk/shared`'s bundled types, re-exported through `@clerk/nextjs`) before building anything:
+it exposes `accept()` and nothing else — no `reject()`/`decline()`. Clerk's only invitation-negation
+primitive is admin-side "revoke" (`DELETE /org/invitations/{id}`, already built as this workflow's
+own `useRevokeInvitation` — a different actor, the sender). "Reject" here hides the invitation in
+this browser only (`localStorage`, keyed per Clerk user id) — the sender still sees it as pending
+until they revoke it or it expires. The button is intentionally still labeled "Reject" (matching
+what the founder asked for), with the real behavior disclosed via its title tooltip rather than
+silently overpromising.
+
+**Accept calls the real `invitation.accept()`, then `setActive({ organization: ... })`.** Clerk's
+`accept()` joins the membership but doesn't itself move the signed-in user's active organization,
+so without the explicit `setActive` call the user would stay on whatever org (or no org) they were
+previously scoped to. `@clerk/types` isn't a direct dependency (only `@clerk/nextjs` is in
+`package.json`), so the invitation's type is derived from `useOrganizationList`'s own return type
+via an indexed-access type rather than importing a package not actually installed.
+
+**`/invitations` actively polls for the webhook sync after Accept, instead of just linking to
+`/dashboard` — a second real bug, caught live the same day this shipped.** A naive "Continue to
+app" `Link` raced the async `organizationMembership.created` webhook: clicking through immediately
+after Accept usually hit `/dashboard` before that webhook had created the backend's `users` row,
+so `OnboardingShield` caught the same `USER_NOT_SYNCHRONIZED`/`ORGANIZATION_NOT_FOUND` this whole
+feature exists to route around and bounced the user straight back — a confusing "nothing happened,
+and there's an API error" loop even after the original all-shell-hooks-fire-at-once bug (see
+above) was fixed. Fixed by having `InvitationsList` take an `onAccepted(orgName)` callback, fired
+only on a real successful accept (`usePendingInvitations.accept` now returns a boolean), which the
+page uses to switch into a "Setting up your access to `<org>`…" state: `useLLMProviders` gets a
+real `refetchInterval` (extended with an optional-options param for exactly this) and polls every
+1.5s until its error stops being a no-org error, then `router.push`es to `/dashboard` itself — by
+which point `["llm-providers"]`'s cache is already warm, so `OnboardingShield`'s own call there is
+a cache hit, not another race. Caps at 20s before falling back to the always-present manual
+button, rather than polling forever if sync is ever genuinely stuck. `isNoOrgError` (the two error
+codes) now lives once, in `src/lib/api/orgSync.ts`, reused by both `OnboardingShield` and this
+page; `client.ts`'s generic `console.error` on every `ApiError` also now skips these specific codes
+(`EXPECTED_TRANSIENT_CODES`, exported from `client.ts` — the one place that decides what's noise),
+since a 401 that's expected and about to resolve on its own isn't a fault worth logging.
