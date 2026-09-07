@@ -24,6 +24,7 @@ const ACCEPTED_TYPES = {
 
 export function DocumentUploader() {
   const [category, setCategory] = useState("General");
+  const [ownerOnly, setOwnerOnly] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [docId, setDocId] = useState<string | null>(null);
@@ -53,7 +54,12 @@ export function DocumentUploader() {
   const handleUpload = () => {
     if (!file) return;
     uploadMutation.mutate(
-      { file, category: category.toLowerCase(), onProgress: setProgress },
+      {
+        file,
+        category: category.toLowerCase(),
+        visibility: ownerOnly ? "owner_only" : "all_members",
+        onProgress: setProgress,
+      },
       {
         onSuccess: (data) => setDocId(data.doc_id),
       }
@@ -119,6 +125,16 @@ export function DocumentUploader() {
             ))}
           </select>
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={ownerOnly}
+            onChange={(e) => setOwnerOnly(e.target.checked)}
+            className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring/40"
+          />
+          Owner only — hide from other members
+        </label>
 
         <Button onClick={handleUpload} className="w-full">
           Upload document

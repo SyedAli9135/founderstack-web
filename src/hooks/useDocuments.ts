@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { useApiClient, ApiError } from "@/lib/api/client";
-import { AppDocument } from "@/lib/api/types";
+import { AppDocument, DocumentVisibility, SearchResponse } from "@/lib/api/types";
 import { toast } from "sonner";
 
 let API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -49,6 +49,7 @@ export function useDocument(docId: string | null, options?: { enabled?: boolean 
 interface UploadVariables {
   file: File;
   category: string;
+  visibility?: DocumentVisibility;
   onProgress?: (percent: number) => void;
 }
 
@@ -66,11 +67,12 @@ export function useUploadDocument() {
   const queryClient = useQueryClient();
 
   return useMutation<UploadResponse, ApiError, UploadVariables>({
-    mutationFn: async ({ file, category, onProgress }) => {
+    mutationFn: async ({ file, category, visibility, onProgress }) => {
       const token = await getToken();
       const formData = new FormData();
       formData.append("file", file);
       formData.append("category", category);
+      if (visibility) formData.append("visibility", visibility);
 
       return new Promise<UploadResponse>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -128,6 +130,25 @@ export function useDeleteDocument() {
     },
     onError: (err) => {
       toast.error("Delete failed", { description: err.message });
+    },
+  });
+}
+
+interface SearchVariables {
+  query: string;
+  category?: string;
+  top_k?: number;
+}
+
+// A mutation, not a useQuery-by-key: search is explicit-submit driven
+// (a founder clicking "Search" or hitting enter), not something that
+// should refetch on its own the way the documents list does.
+export function useSearchDocuments() {
+  const api = useApiClient();
+  return useMutation<SearchResponse, ApiError, SearchVariables>({
+    mutationFn: (body) => api.post<SearchResponse>("/documents/search", body),
+    onError: (err) => {
+      toast.error("Search failed", { description: err.message });
     },
   });
 }

@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useDocuments, useDeleteDocument, useReindexDocument } from "@/hooks/useDocuments";
 import { DocumentUploader } from "@/components/documents/DocumentUploader";
+import { DocumentSearch } from "@/components/documents/DocumentSearch";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,6 +22,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Lock,
 } from "lucide-react";
 
 const statusBadge: Record<DocumentProcessingStatus, ReactNode> = {
@@ -74,6 +76,11 @@ function DocumentRow({ doc }: { doc: AppDocument }) {
         <div className="flex items-center gap-2 min-w-0">
           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="truncate text-sm text-foreground">{doc.filename}</span>
+          {doc.visibility === "owner_only" && (
+            <span title="Owner only">
+              <Lock className="h-3 w-3 shrink-0 text-muted-foreground" role="img" aria-label="Owner only" />
+            </span>
+          )}
         </div>
       </td>
       <td className="py-3 pr-4 text-sm capitalize text-muted-foreground">{doc.category}</td>
@@ -136,6 +143,7 @@ function DocumentRow({ doc }: { doc: AppDocument }) {
 export default function DocumentsPage() {
   const { data: documents, isLoading, error } = useDocuments();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
 
   if (isLoading) {
     return (
@@ -171,7 +179,9 @@ export default function DocumentsPage() {
         </Button>
       </div>
 
-      {items.length === 0 ? (
+      {items.length > 0 && <DocumentSearch onActiveChange={setSearchActive} />}
+
+      {searchActive ? null : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-16 text-center">
           <FileText className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">No documents yet</p>

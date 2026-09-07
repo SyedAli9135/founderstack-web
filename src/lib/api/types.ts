@@ -52,6 +52,11 @@ export interface LLMProvider {
 
 export type DocumentProcessingStatus = "pending" | "processing" | "indexed" | "failed" | "deleting";
 
+// Workflow 12's ACL: 'owner_only' hides a document from anyone whose role
+// isn't owner/admin — see founderstack-api-go's migration
+// 000012_workflow12_document_visibility and Handler.Search's ACL check.
+export type DocumentVisibility = "all_members" | "owner_only";
+
 export interface AppDocument {
   id: string;
   filename: string;
@@ -62,6 +67,22 @@ export interface AppDocument {
   created_at: string;
   indexed_at?: string | null;
   error_detail?: string | null;
+  visibility: DocumentVisibility;
+}
+
+// Workflow 12 (RAG search) — matches GET .../documents/search's
+// searchResult/response envelope exactly.
+export interface SearchResult {
+  content: string;
+  doc_filename: string;
+  category: string;
+  relevance_score: number;
+  chunk_index: number;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  from_cache: boolean;
 }
 
 export type AgentType = "orchestrator" | "specialist";
