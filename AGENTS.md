@@ -174,3 +174,64 @@ full reject leg, not just one). Email (Brevo) and push delivery themselves need 
 `BREVO_API_KEY`/`WEBPUSH_VAPID_*` credentials neither server has configured yet in this
 environment — the decision *mechanism* (this section's bug and fix) is what's been live-verified;
 actual email/push delivery still needs a real account signed up and configured to verify further.
+
+## Workflow 11 — run trace & cost (`src/components/workflows/RunTimeline.tsx`,
+`src/components/analytics/CostBreakdown.tsx`, `src/app/(app)/runs/[id]/page.tsx`)
+
+Adds a persisted trace and a per-run cost breakdown below the existing live SSE feed on a run's
+detail page — `RunTimeline` reads `GET /runs/{id}/steps` once (works for a run that already
+finished before the page loaded, unlike the SSE feed which only ever shows events that arrived
+while connected), `CostBreakdown` reads `GET /runs/{id}/cost`. Both are plain `useQuery` calls
+(`useRunSteps`/`useRunCost` in `src/hooks/useRuns.ts`), refetched via the same prefix-match
+`invalidateQueries(["runs", id])` the run-status effect already fires on `complete`/`error`/
+`approval_required` — no new invalidation wiring needed, React Query's default `exact: false`
+already covers the nested query keys.
+
+**`CostBreakdown` is a horizontal segmented bar, not the donut chart `WORKFLOW_PLAN_GO.md`
+literally specifies** — a deliberate deviation, confirmed with the founder before finalizing
+("what do you think is best?" → founder agreed to keep the bar). The dataviz skill's own guidance
+recommends a stacked bar over a pie/donut for a 2-4-category part-to-whole breakdown; a donut
+would have matched the plan's wording but been the objectively weaker chart for this exact shape
+of data. Color is assigned by a **fixed per-`cost_type` slot** (`llm_inference` → `--chart-1`,
+`tool_call` → `--chart-2`, etc.), never by sort/rank order — coloring nominal categories by
+whichever one happens to be biggest in a given run is a real accessibility anti-pattern (implies a
+false ordinal relationship between categories that have none). This repurposed the app's
+`--chart-1..4` tokens (`src/app/globals.css`) from an unused monochromatic teal ramp — appropriate
+for *sequential* (magnitude) data, wrong for *categorical* (identity) data like cost types — to a
+validated categorical palette, checked against this app's own light/dark card surfaces via the
+dataviz skill's validator script before committing to the hex values.
+
+**Verification method**: `tsc`/`lint`/`build` all pass clean. Backend side (the `workflow_steps`
+persistence gap this closes, the PII sanitizer, `hours_saved`) is documented in
+`founderstack-api-go/CLAUDE.md`'s "View Run Trace & Cost (workflow 11)" section.
+
+## Workflow 12 — document search (`src/components/documents/DocumentSearch.tsx`,
+`src/components/documents/DocumentUploader.tsx`, `src/app/(app)/documents/page.tsx`)
+
+A search bar above the documents table (`useSearchDocuments`, a `useMutation` in
+`src/hooks/useDocuments.ts` — explicit-submit driven, not a `useQuery`-by-key the way the
+documents list is, since search shouldn't refetch on its own). Submitting a query replaces the
+table with a results list (`SearchResultCard`: filename, category badge, a relevance score
+meter, and the matched query terms highlighted via a small client-side regex — the backend
+doesn't return match spans, just the excerpt text); clearing the query returns to the normal
+table view. A "⚡ From cache" label renders when the backend's response carries `from_cache: true`.
+
+**No skeleton-placeholder loading state, unlike the plan's literal wording** — this app has no
+skeleton component anywhere; every existing list page (documents, agents, approvals, runs) uses
+the same centered `Loader2` spinner, so the search results area matches that established
+convention instead of introducing a new loading-state style for one feature.
+
+**`DocumentUploader.tsx` gained an "Owner only — hide from other members" checkbox**, sending the
+new `visibility` form field `POST /documents/upload` now accepts — the ACL primitive this
+workflow's search endpoint enforces (`documents.visibility`, added in `founderstack-api-go`, no
+frontend-facing concept before this). The documents table shows a small lock icon next to an
+owner-only file's name.
+
+**Verification method**: `tsc`/`lint`/`build` all pass clean, but **this UI was not visually
+verified in a real browser this session** — Claude-in-Chrome was fully disconnected (not the
+usual flaky-reconnect issue seen in earlier sessions, genuinely not connected at all), so the
+founder ran their own manual pass (uploading a real multi-section sample policy document and
+trying a range of literal, paraphrased, and no-match queries) instead of a live-browser check
+here. Backend side (the ACL/cache-isolation/audit-log bugs found and fixed, real end-to-end
+timing against live Cohere/Pinecone/Redis) is documented in `founderstack-api-go/CLAUDE.md`'s
+"Search Knowledge Base / RAG Query (workflow 12)" section.
