@@ -23,6 +23,7 @@ import {
   Mail,
   BarChart3,
   Gauge,
+  Shield,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ const settingsItems = [
   { href: "/settings/api-key", label: "LLM Providers", icon: KeyRound },
   { href: "/settings/notifications", label: "Notifications", icon: BellRing },
   { href: "/settings/team", label: "Team", icon: Users },
+  { href: "/settings/security", label: "Audit Log", icon: Shield },
 ];
 
 function NavLink({

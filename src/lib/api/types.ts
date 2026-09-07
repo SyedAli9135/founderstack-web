@@ -427,3 +427,29 @@ export interface RagQualityStats {
   total_searches: number;
 }
 
+// Workflow 17 (view audit logs). actor_type/status are open strings, not
+// literal unions — this app's own real data only ever writes "user"/
+// "agent" for actor_type and "success"/"error" for status (never the
+// plan's literal "denied"), and a closed union here would silently reject
+// a real, valid value the backend adds later.
+export interface AuditLogEntry {
+  id: string;
+  created_at: string;
+  actor_type: string;
+  actor_name: string;
+  action: string;
+  resource_type?: string | null;
+  resource_id?: string | null;
+  status?: string | null;
+}
+
+export interface AuditLogCursor {
+  created_at: string;
+  id: string;
+}
+
+export interface AuditLogsResponse {
+  entries: AuditLogEntry[];
+  next_cursor?: AuditLogCursor | null;
+}
+

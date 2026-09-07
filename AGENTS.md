@@ -465,3 +465,49 @@ org's real third-party connections and then re-authorizing it through that provi
 consent screen, which only the founder can complete; the backend's own integration test
 (`TestBuildNodes_IntegrationErrorOnRevokedConnection`) is what verifies the event actually gets
 published with the right shape end-to-end.
+
+## Workflow 17 — view audit logs (`src/hooks/useAuditLogs.ts`,
+`src/app/(app)/settings/security/page.tsx`)
+
+Built 2026-09-07. `GET /audit-logs` (see `founderstack-api-go/CLAUDE.md`'s own "View Audit Logs
+(workflow 17)" section for the backend side — the actor-name resolution, the sqlc `COALESCE`
+nullability bug caught before shipping, the cursor pagination) is a brand-new endpoint; this is
+its first and only consumer.
+
+**`useAuditLogs` is this app's first `useInfiniteQuery`**, not the plain `useQuery` + local
+limit/offset state every other paginated view here uses (`useBilling.ts`'s `useCostLedger`) —
+justified specifically because `audit_logs` is written to continuously by every running agent, so
+a plain offset page taken a few seconds apart from the last would skip or repeat real rows; the
+backend's cursor-based `(created_at, id)` pagination needs a client that actually accumulates
+pages rather than replacing one, which is exactly what `useInfiniteQuery` is for. Built the query
+string with `URLSearchParams`, not string concatenation — the backend's own test suite caught a
+real bug from doing exactly that (an RFC3339 timestamp's `+` timezone offset gets silently
+decoded as a space by naive concatenation), so this hook was written to avoid it from the start
+rather than discover it the same way.
+
+**No new UI primitives** — the filter bar (actor type/status `<select>`, action text `<input>`,
+two date `<input type="date">`s) and the table follow this app's existing plain-native-element
++ Tailwind convention (see `/settings/team`'s role dropdown), not a new component library; this
+app has never had a dedicated `Select`/`DatePicker` shadcn component and one wasn't worth adding
+for a single admin-only page.
+
+**Actor icons are Lucide (`User`/`Bot`/`Cog`), not the plan's literal emoji (👤/🤖/⚙️)** — matches
+this app's own established restraint (the dashboard, sidebar, and most cards all use Lucide
+icons throughout; `ApprovalCard`'s literal-emoji decided-state text is the one existing exception,
+not the rule this page should follow).
+
+**Page-level gate mirrors the backend's real 403**, same pattern as every other role-gated page in
+this app (`/settings/team`, `/agents`, `/workflows`) — a member/viewer sees a plain "Owner or admin
+access required" message instead of the table; this is convenience/clarity, the backend
+independently enforces the actual boundary.
+
+**Verified live in a real browser this session, both sides of the permission gate** — as a member
+account (the only one this session's browser was signed into), `/settings/security` correctly
+showed the "Owner or admin access required" message with a single expected `403` logged, no other
+console errors, confirmed in a freshly-restarted dev server (a stale, days-old `next dev` process
+briefly made the new sidebar item appear to be missing entirely — a stale-tab/stale-bundle
+artifact, not a code bug, resolved by restarting the dev server and opening a fresh tab). The
+actual populated table (real entries, resolved actor names, working filters, 3-page cursor
+pagination) was verified via direct `curl` calls against the real dev org's own admin account
+instead, since this session's browser had no admin-account session available to click through —
+all of that data is documented in `founderstack-api-go/CLAUDE.md`'s own workflow 17 section.
