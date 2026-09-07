@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Brain,
   Wrench,
@@ -11,6 +12,7 @@ import {
   FlagTriangleRight,
   ChevronRight,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -20,6 +22,7 @@ import {
   ToolResultEventData,
   NodeTransitionEventData,
   CompleteEventData,
+  IntegrationErrorEventData,
 } from "@/lib/api/types";
 
 function isReasoningData(data: RunEvent["data"]): data is ReasoningEventData {
@@ -40,6 +43,14 @@ function isNodeTransitionData(data: RunEvent["data"]): data is NodeTransitionEve
 
 function isCompleteData(data: RunEvent["data"]): data is CompleteEventData {
   return typeof data === "object" && data !== null && "output" in data;
+}
+
+function isIntegrationErrorData(data: RunEvent["data"]): data is IntegrationErrorEventData {
+  return typeof data === "object" && data !== null && "reconnect_url" in data;
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function describeEvent(ev: RunEvent): { icon: LucideIcon; text: string; tone: "default" | "error" | "success" } {
@@ -143,6 +154,28 @@ function ToolResultRow({ ev }: { ev: RunEvent }) {
   );
 }
 
+/** Workflow 16: a tool call failed because the org's connection to a
+ * service is missing/expired/revoked — published alongside that tool's
+ * own tool_result row, but rendered as its own actionable banner (not
+ * folded into the generic tool-error line above it) since the fix here is
+ * "go reconnect something," not "read the error and move on." */
+function IntegrationErrorRow({ ev }: { ev: RunEvent }) {
+  if (!isIntegrationErrorData(ev.data)) return null;
+  const { service, reconnect_url } = ev.data;
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs ${rowAnimation}`}
+    >
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+      <span className="text-foreground">{capitalize(service)} needs reconnection.</span>
+      <Link href={reconnect_url} className="font-medium text-primary hover:underline">
+        Reconnect now →
+      </Link>
+      <span className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground/70">{formatTime(ev.timestamp)}</span>
+    </div>
+  );
+}
+
 /** Auto-scrolling event log — the raw sequence behind AgentPipeline's
  * summarized node states. See WORKFLOW_PLAN_GO.md's Workflow 9 acceptance
  * criteria for the event types this forwards.
@@ -175,6 +208,7 @@ export function LiveFeed({ events, isLive }: { events: RunEvent[]; isLive?: bool
       {events.map((ev, i) => {
         if (ev.type === "reasoning") return <ReasoningRow key={i} ev={ev} />;
         if (ev.type === "tool_result") return <ToolResultRow key={i} ev={ev} />;
+        if (ev.type === "integration_error") return <IntegrationErrorRow key={i} ev={ev} />;
 
         const { icon: Icon, text, tone } = describeEvent(ev);
         return (

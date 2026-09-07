@@ -425,3 +425,43 @@ session** (Claude-in-Chrome connected, unlike workflows 12/13's passes) — `/da
 org's real data (stat cards, the stacked daily-usage bar chart's baseline anchoring/legend
 hover, the per-agent cost-share bar's "Other" fold-in, and `/analytics/agents`' live column
 sorting), zero console errors and every `/api/v1/...` request returning `200`.
+
+## Workflow 16 — disconnect / reconnect integration (`src/components/workflows/LiveFeed.tsx`,
+`src/components/integrations/IntegrationCard.tsx`, `src/app/(app)/integrations/page.tsx`)
+
+Built 2026-09-07. Most of this workflow's own acceptance criteria were already true before this
+pass — `IntegrationCard`'s `expired`-status "⚠️ Reconnect" badge/button and the Disconnect confirm
+dialog ("This will stop workflows that use {name}.") both shipped back in workflow 4, unchanged
+here. What was missing was the live-run half: nothing ever told a human *watching a run* that a
+tool call had just failed for an integration-specific reason, distinct from any other tool error —
+see `founderstack-api-go/CLAUDE.md`'s own "Disconnect / Reconnect Integration (workflow 16)"
+section for the backend side (`EventIntegrationError`, `MarkExpired` self-healing) this consumes.
+
+**`LiveFeed.tsx` gained a new `IntegrationErrorRow`**, following the exact same "special-case this
+event type before the generic switch" pattern `ReasoningRow`/`ToolResultRow` already established
+— an amber-toned inline banner ("`{Service}` needs reconnection." + a real `Reconnect now →` link
+to `reconnect_url`), rendered *alongside* the tool call's own (now less prominent) generic
+`tool_result` error row, not instead of it — a human sees both "this call failed" and "here's
+specifically why, and the fix," while the model's own reasoning is unaffected (the backend change
+this depends on never altered the model-facing conversation).
+
+**`/integrations?reconnect={service}` (the banner's link target) now actually does something**,
+rather than landing on a plain, unfiltered grid the founder has to search — `IntegrationCard`
+gained a `highlighted` prop (scrolls itself into view via a ref + `useEffect`, adds a
+`ring-2 ring-primary/40` treatment) and the integrations page reads `?reconnect=` via a **lazy
+`useState` initializer**, not a mount effect + `setState` — this codebase already hit the
+`react-hooks/set-state-in-effect` rule once before (see this file's own workflow-13 section), so
+the fix here is the same shape: capture the value once before first paint, then a separate effect
+only handles the URL-strip + the highlight's 4-second auto-clear timeout (a `setTimeout` callback
+setting state is fine under that rule; a synchronous call in the effect body is what it flags).
+
+**Live-verified in a real browser this session** against 2 already-`expired` real connections in
+the dev org (`google_calendar`, `google_drive`, both expired from earlier sessions' own testing):
+navigating to `/integrations?reconnect=google_calendar` correctly scrolled to and highlighted only
+that card (visually distinct from `google_drive`'s plain border right beside it), and the URL was
+correctly stripped back to `/integrations` afterward. **The `LiveFeed` banner itself was not
+live-clicked-through** — reproducing it against a real run would mean disconnecting one of the dev
+org's real third-party connections and then re-authorizing it through that provider's actual OAuth
+consent screen, which only the founder can complete; the backend's own integration test
+(`TestBuildNodes_IntegrationErrorOnRevokedConnection`) is what verifies the event actually gets
+published with the right shape end-to-end.

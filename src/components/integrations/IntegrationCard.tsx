@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Integration } from "@/lib/api/types";
 import { useConnectIntegration, useDisconnectIntegration } from "@/hooks/useIntegrations";
 import { IntegrationApiKeyForm } from "./IntegrationApiKeyForm";
@@ -11,11 +11,21 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface IntegrationCardProps {
   integration: Integration;
+  // Set when this card is the target of a workflow-16 reconnect_url
+  // (?reconnect=service, from a live run's "needs reconnection" banner) —
+  // scrolls itself into view and briefly rings so it's easy to find among
+  // a whole category grid of cards.
+  highlighted?: boolean;
 }
 
-export function IntegrationCard({ integration }: IntegrationCardProps) {
+export function IntegrationCard({ integration, highlighted }: IntegrationCardProps) {
   const [showKeyForm, setShowKeyForm] = useState(false);
   const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlighted) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlighted]);
 
   const connectMutation = useConnectIntegration();
   const disconnectMutation = useDisconnectIntegration();
@@ -61,7 +71,12 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
   }[status];
 
   return (
-    <div className="flex min-h-[176px] flex-col justify-between rounded-lg border border-border bg-card p-4">
+    <div
+      ref={cardRef}
+      className={`flex min-h-[176px] flex-col justify-between rounded-lg border bg-card p-4 transition-shadow ${
+        highlighted ? "border-primary ring-2 ring-primary/40" : "border-border"
+      }`}
+    >
       <div>
         <div className="mb-3 flex items-start justify-between">
           <div className={`flex h-9 w-9 items-center justify-center rounded-md bg-accent ${iconColorClass}`}>

@@ -231,7 +231,8 @@ export type RunEventType =
   | "approval_required"
   | "error"
   | "token"
-  | "complete";
+  | "complete"
+  | "integration_error";
 
 // reasoning's data — the model's own text on a turn, surfaced live even
 // when that turn also requests a tool call (real providers routinely
@@ -278,11 +279,23 @@ export interface ApprovalRequiredEventData {
   tool_calls: { id: string; name: string; args?: Record<string, unknown> }[];
 }
 
+// integration_error's data — matches graph.IntegrationErrorData exactly.
+// Workflow 16: published alongside (not instead of) the tool_call's own
+// tool_result event, when a tool call fails because the org's connection
+// to service is missing/expired/revoked — the live feed's cue to render a
+// "needs reconnection" banner instead of treating it like any other tool
+// error.
+export interface IntegrationErrorEventData {
+  service: string;
+  reconnect_url: string;
+}
+
 // RunEvent.data's shape depends on RunEvent.type: NodeTransitionEventData
 // for node_start/node_end, ToolCallEventData for tool_call,
 // ToolResultEventData for tool_result, CompleteEventData for complete,
-// ApprovalRequiredEventData for approval_required, or a plain error string
-// for error. See internal/core/graph's Event/EventBus.
+// ApprovalRequiredEventData for approval_required, IntegrationErrorEventData
+// for integration_error, or a plain error string for error. See
+// internal/core/graph's Event/EventBus.
 export interface RunEvent {
   type: RunEventType;
   run_id: string;
@@ -293,7 +306,8 @@ export interface RunEvent {
     | ToolCallEventData
     | ToolResultEventData
     | CompleteEventData
-    | ApprovalRequiredEventData;
+    | ApprovalRequiredEventData
+    | IntegrationErrorEventData;
   timestamp: string;
 }
 

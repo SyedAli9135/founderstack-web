@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useIntegrations } from "@/hooks/useIntegrations";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { toast } from "sonner";
@@ -8,6 +8,16 @@ import { Loader2 } from "lucide-react";
 
 export default function IntegrationsPage() {
   const { data: integrations, isLoading, error } = useIntegrations();
+  // Workflow 16: a live run's "needs reconnection" banner links here as
+  // ?reconnect=service — highlight that one card briefly instead of
+  // leaving the founder to hunt for it among every connected service.
+  // Captured via lazy init (not a mount effect + setState — this codebase
+  // already hit the react-hooks/set-state-in-effect rule once before, see
+  // src/app/(app)/settings/notifications/page.tsx's own note on the same
+  // fix) since the URL only needs reading once, before first paint.
+  const [highlightedService, setHighlightedService] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("reconnect")
+  );
 
   // Show a toast when returning from an OAuth redirect (?connected=slack)
   useEffect(() => {
@@ -17,6 +27,17 @@ export default function IntegrationsPage() {
       toast.success(`${connectedService} connected`);
       window.history.replaceState({}, "", window.location.pathname);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!highlightedService) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    const timeout = setTimeout(() => setHighlightedService(null), 4000);
+    return () => clearTimeout(timeout);
+    // Only the mount-time value matters — clearing highlightedService itself
+    // must not re-trigger this (it would immediately clear the timeout it
+    // just set and re-strip a URL that's already clean).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (isLoading) {
@@ -64,7 +85,11 @@ export default function IntegrationsPage() {
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {categoryItems.map((integration) => (
-                  <IntegrationCard key={integration.service} integration={integration} />
+                  <IntegrationCard
+                    key={integration.service}
+                    integration={integration}
+                    highlighted={integration.service === highlightedService}
+                  />
                 ))}
               </div>
             </div>
