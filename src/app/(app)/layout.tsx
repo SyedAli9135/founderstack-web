@@ -21,6 +21,8 @@ import {
   BellRing,
   Users,
   Mail,
+  BarChart3,
+  Gauge,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,8 @@ const navItems = [
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/integrations", label: "Integrations", icon: Puzzle },
+  { href: "/analytics/usage", label: "Usage", icon: BarChart3 },
+  { href: "/analytics/agents", label: "Agent Performance", icon: Gauge },
   { href: "/invitations", label: "Invitations", icon: Mail },
 ];
 

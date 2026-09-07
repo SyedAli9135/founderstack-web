@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, ApiError } from "@/lib/api/client";
-import { LLMProvider } from "@/lib/api/types";
+import { ApiKeyUsage, LLMProvider } from "@/lib/api/types";
 
 // refetchInterval defaults to off — OnboardingShield only needs this once
 // per protected-route mount. The invitations page passes a real interval
@@ -18,6 +18,16 @@ export function useLLMProviders(options?: { refetchInterval?: number | false }) 
     // freshness after an actual change.
     staleTime: 5 * 60 * 1000,
     refetchInterval: options?.refetchInterval ?? false,
+  });
+}
+
+// Workflow 14's calendar-month token usage figure — a founder using BYOK's
+// own "how many tokens did my agents burn this month" answer.
+export function useApiKeyUsage() {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: ["llm-providers", "usage"],
+    queryFn: () => api.get<ApiKeyUsage>("/settings/api-key/usage"),
   });
 }
 

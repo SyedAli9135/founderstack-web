@@ -347,3 +347,69 @@ export interface PendingInvitation {
   expires_at?: string | null;
 }
 
+// Workflow 14 (token usage & analytics). ApiKeyUsage is the calendar-month
+// aggregate behind GET /settings/api-key/usage; BillingUsage is the same
+// shape's rolling-30-day sibling from GET /billing/usage, plus the
+// daily/per-agent breakdowns its charts need — one request per page.
+export interface ApiKeyUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  thinking_tokens: number;
+  total_estimated_usd: number;
+  cache_hit_rate: number;
+}
+
+export interface DailyUsagePoint {
+  day: string;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  estimated_cost_usd: number;
+}
+
+export interface AgentCostShareItem {
+  agent_name: string;
+  total_cost_usd: number;
+}
+
+export interface BillingUsage extends ApiKeyUsage {
+  daily_usage: DailyUsagePoint[];
+  agent_cost_share: AgentCostShareItem[];
+}
+
+export interface LedgerEntry {
+  id: string;
+  created_at: string;
+  cost_type: CostType;
+  provider?: string | null;
+  model?: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  thinking_tokens: number;
+  estimated_cost_usd: number;
+}
+
+export interface LedgerResponse {
+  entries: LedgerEntry[];
+  total: number;
+}
+
+export interface AgentPerformanceItem {
+  agent_id: string;
+  agent_name: string;
+  total_runs: number;
+  success_rate: number;
+  avg_duration_ms: number;
+  avg_cost_usd: number;
+  failure_count: number;
+}
+
+export interface RagQualityStats {
+  avg_rerank_score: number;
+  avg_chunks_retrieved: number;
+  cache_hit_rate: number;
+  total_searches: number;
+}
+

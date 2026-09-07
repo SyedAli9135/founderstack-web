@@ -372,3 +372,56 @@ codes) now lives once, in `src/lib/api/orgSync.ts`, reused by both `OnboardingSh
 page; `client.ts`'s generic `console.error` on every `ApiError` also now skips these specific codes
 (`EXPECTED_TRANSIENT_CODES`, exported from `client.ts` — the one place that decides what's noise),
 since a 401 that's expected and about to resolve on its own isn't a fault worth logging.
+
+## Workflow 14 — token usage & analytics (`src/hooks/useAnalytics.ts`, `src/hooks/useBilling.ts`,
+`src/components/analytics/{HoursSavedCard,UsageTrendChart,AgentCostShareChart}.tsx`,
+`src/app/(app)/analytics/{usage,agents}/page.tsx`, reworks `src/app/(app)/dashboard/page.tsx`)
+
+Built 2026-09-07. The real dashboard, finally — `/dashboard` was a static 3-card placeholder with
+hardcoded zeros since the app's very first pass; this workflow is what actually wires it up.
+`GET /analytics/hours-saved` existed since workflow 11 but had never been consumed by any page
+until now — `HoursSavedCard` is its first caller.
+
+**Two new charts, both hand-rolled (no charting library added), continuing workflow 11's own
+precedent** (`CostBreakdown.tsx`) rather than adding `recharts` (the plan's literal suggestion):
+`UsageTrendChart` is a stacked **bar** chart, not the **area** chart the plan specifies — same
+reasoning as workflow 11's donut→bar deviation, restated for this shape of data: daily token usage
+is one discrete total per calendar day, not a continuously sampled quantity, and an area chart's
+interpolation between points implies a smoothness this data doesn't have. `AgentCostShareChart`
+reuses `CostBreakdown`'s exact segmented-horizontal-bar pattern, extended with a real "fold beyond
+4 into Other" step (the dataviz skill's own rule for a categorical series with more than a handful
+of members) — this org's own real dev data has 23 agents from workflow 9's mock-scenario catalog,
+which made this fold-in path exercise real data immediately, not just a hypothetical edge case.
+Both reuse the existing `--chart-1..5` tokens as-is (already validated against this app's light/
+dark surfaces in workflow 11) — no new palette values, so no re-validation needed.
+
+**The cache-hit-rate callout is qualitative, not a fabricated dollar figure**, unlike the plan's
+literal wording ("saving you ~$30/mo") — there's no real "what this would have cost without the
+cache" baseline to subtract from, and inventing a per-token multiplier just to produce a dollar
+number would be a made-up figure dressed as a real one. States the percentage and what it means
+instead.
+
+**Dashboard's "Recent runs" list shows status + time only, not a workflow name**, unlike the
+plan's literal "name, status icon, time elapsed" — matches this codebase's own existing `/runs`
+list page exactly, which has never shown a workflow name either (`GET /runs`'s `runSummary`
+response has no `workflow_id`-to-name join anywhere in this codebase yet). Introducing a
+name lookup only on the dashboard's copy of this list, while leaving the actual `/runs` page
+without one, would create a real inconsistency rather than fix a gap — left as-is, matching the
+established convention rather than the plan's wording.
+
+**Pending Approvals preview reuses `ApprovalCard` directly**, not a new compact component — it
+already handles the full inline expand/Approve/Reject flow (including the reason-required-on-
+reject rule), and workflow 10 already established it as usable both inline-on-a-run and on the
+`/approvals` list page; a dashboard preview is a third, equally valid context for the same
+component, not a reason to build a fourth approval-decision UI.
+
+**Verification method**: `tsc`/`lint`/`build` all pass clean. Backend side (the new
+`/settings/api-key/usage`, `/billing/usage`, `/billing/ledger`, `/analytics/agent-performance`,
+`/analytics/rag-quality` endpoints these hooks call, and the live-curl verification against the
+dev org's real cost/run/audit-log data) is documented in `founderstack-api-go/CLAUDE.md`'s "View
+Token Usage & Analytics (workflow 14)" section. **Also live-verified in a real browser this
+session** (Claude-in-Chrome connected, unlike workflows 12/13's passes) — `/dashboard`,
+`/analytics/usage`, and `/analytics/agents` all confirmed rendering correctly against the dev
+org's real data (stat cards, the stacked daily-usage bar chart's baseline anchoring/legend
+hover, the per-agent cost-share bar's "Other" fold-in, and `/analytics/agents`' live column
+sorting), zero console errors and every `/api/v1/...` request returning `200`.
