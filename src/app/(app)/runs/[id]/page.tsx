@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useRun, useCancelRun, useRunSteps, useRunCost } from "@/hooks/useRuns";
 import { useWorkflowStream } from "@/hooks/useWorkflowStream";
@@ -49,11 +50,25 @@ function formatDuration(ms?: number): string | null {
 
 export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: run, isLoading, error } = useRun(id);
   const cancelMutation = useCancelRun();
   const queryClient = useQueryClient();
   const { data: steps, isLoading: stepsLoading } = useRunSteps(id);
   const { data: cost, isLoading: costLoading } = useRunCost(id);
+
+  // Workflow 18: this page renders a single-agent AgentPipeline
+  // (planner/executor/validator/reporter) — a team's orchestrator run has
+  // its own "delegate" node and a specialist breakdown this page knows
+  // nothing about, so redirect to the real multi-agent page instead of
+  // showing a broken-looking pipeline. Reachable via an old bookmark, a
+  // shared link, or /runs itself (which links team rows correctly, but
+  // this redirect is the defensive fallback for every other way in).
+  useEffect(() => {
+    if (run?.team_id) {
+      router.replace(`/agents/teams/${run.team_id}/runs/${id}`);
+    }
+  }, [run?.team_id, id, router]);
 
   const isLive = run ? LIVE_STATUSES.includes(run.status) : false;
   const { events, connectionState } = useWorkflowStream(isLive ? id : null);
@@ -97,7 +112,10 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
     return last ? (last.data as ApprovalRequiredEventData) : null;
   }, [events, run?.status]);
 
-  if (isLoading) {
+  if (isLoading || run?.team_id) {
+    // The team_id case is mid-redirect (see the effect above) — render the
+    // same loading state rather than this page's own pipeline, which
+    // would otherwise flash briefly with the wrong (single-agent) shape.
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

@@ -168,6 +168,10 @@ export interface WorkflowRun {
   completed_at?: string;
   duration_ms?: number;
   created_at: string;
+  // Workflow 18: set only for a team's own orchestrator run — lets
+  // /runs (and /runs/{id}) tell it apart from an ordinary single-agent
+  // run, which otherwise looked identical and linked to the wrong page.
+  team_id?: string;
 }
 
 export interface RunDetail extends WorkflowRun {
@@ -562,5 +566,20 @@ export interface TeamRunTrace {
   duration_ms?: number;
   created_at: string;
   specialists: TeamChildRun[];
+}
+
+// matches internal/api/teams/handler.go's teamRunSummary exactly — one
+// row of GET /teams/{id}/runs, the "Recent runs" list on the team detail
+// page (workflow 18's fix for "no way back to a past run once you
+// navigate away").
+export interface TeamRunSummary {
+  id: string;
+  status: RunStatus;
+  output?: string;
+  cost_so_far_usd: number;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  created_at: string;
 }
 

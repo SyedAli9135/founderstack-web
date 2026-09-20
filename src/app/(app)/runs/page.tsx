@@ -4,7 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRuns } from "@/hooks/useRuns";
 import { RunStatus } from "@/lib/api/types";
-import { History, Loader2 } from "lucide-react";
+import { History, Loader2, Network } from "lucide-react";
+
+// Workflow 18: run.team_id (only set on a team's own orchestrator run) is
+// what lets this row look distinct and link to the right place — before
+// this it was indistinguishable from an ordinary single-agent run, and
+// "View →" opened /runs/{id} (which has no idea what a "delegate" node or
+// a specialist lane is) instead of the multi-agent run page.
+function runHref(run: { id: string; team_id?: string }): string {
+  return run.team_id ? `/agents/teams/${run.team_id}/runs/${run.id}` : `/runs/${run.id}`;
+}
 
 const TABS: { label: string; status?: RunStatus }[] = [
   { label: "All" },
@@ -96,6 +105,12 @@ export default function RunsPage() {
                     <span className="inline-flex items-center gap-2">
                       <span className={`h-1.5 w-1.5 rounded-full ${statusDot[run.status]}`} />
                       <span className="capitalize text-foreground">{run.status.replace("_", " ")}</span>
+                      {run.team_id && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">
+                          <Network className="h-2.5 w-2.5" />
+                          Team
+                        </span>
+                      )}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">${run.cost_so_far_usd.toFixed(4)}</td>
@@ -103,7 +118,7 @@ export default function RunsPage() {
                     {run.started_at ? formatWhen(run.started_at) : formatWhen(run.created_at)}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <Link href={`/runs/${run.id}`} className="text-xs font-medium text-primary hover:underline">
+                    <Link href={runHref(run)} className="text-xs font-medium text-primary hover:underline">
                       View →
                     </Link>
                   </td>

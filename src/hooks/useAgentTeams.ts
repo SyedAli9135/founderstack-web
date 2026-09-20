@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, ApiError } from "@/lib/api/client";
-import { AgentTeamDetail, AgentTeamSummary, CreateAgentTeamInput, RunStatus, TeamRunTrace } from "@/lib/api/types";
+import { AgentTeamDetail, AgentTeamSummary, CreateAgentTeamInput, RunStatus, TeamRunSummary, TeamRunTrace } from "@/lib/api/types";
 import { toast } from "sonner";
 
 // Same non-terminal set the team run page uses to decide whether to attach
@@ -63,10 +63,16 @@ export function useDeleteAgentTeam() {
 
 export function useRunAgentTeam() {
   const api = useApiClient();
+  const queryClient = useQueryClient();
 
   return useMutation<{ run_id: string; status: string; stream_url: string }, ApiError, { id: string; input: string }>({
     mutationFn: ({ id, input }) =>
       api.post<{ run_id: string; status: string; stream_url: string }>(`/teams/${id}/run`, { input }),
+    onSuccess: (_, { id }) => {
+      // So the new run appears in "Recent runs" immediately if the
+      // founder navigates back to the team page, not just after a poll.
+      queryClient.invalidateQueries({ queryKey: ["agent-teams", id, "runs"] });
+    },
     onError: (err) => {
       toast.error("Could not start team run", { description: err.message });
     },
@@ -94,5 +100,18 @@ export function useTeamRunTrace(teamId: string | null, runId: string | null) {
       const status = query.state.data?.status;
       return !status || LIVE_STATUSES.includes(status) ? 3000 : false;
     },
+  });
+}
+
+// "Recent runs" on the team detail page — added specifically because
+// there was previously no way to get back to a past run once you'd
+// navigated away from it (the only route in was whatever URL
+// useRunAgentTeam's onSuccess navigated to right after triggering it).
+export function useTeamRuns(teamId: string | null) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: ["agent-teams", teamId, "runs"],
+    queryFn: () => api.get<TeamRunSummary[]>(`/teams/${teamId}/runs`),
+    enabled: !!teamId,
   });
 }

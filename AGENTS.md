@@ -607,3 +607,21 @@ actually shows up in practice. The `[TEST] Team Orchestrator`/`[TEST] Team Finan
 Ops` agents and `[TEST] Board Prep Team` team were left in the real dev org afterward as a
 reusable fixture, matching every other `[TEST] *` agent already there — not cleaned up as
 throwaway data.
+
+**Follow-up fix, same day, after the founder actually used it themselves**: no way to get back
+to a past team run once you'd navigated away — `useTeamRunTrace` needs an exact run id, and
+nothing in the UI remembered one after the page closed. Two additions plus the fix's own bounded
+polling fallback (added just before this, same session — see `useTeamRunTrace`'s own `refetchInterval`
+doc comment for that one): `useTeamRuns(teamId)` (new hook, `GET /teams/{id}/runs`) backs a
+"Recent runs" list on the team detail page — status pill, timestamp, cost, links straight to the
+trace page. `useRunAgentTeam`'s `onSuccess` now also invalidates that list's query key, so a
+freshly-triggered run appears in it immediately, not just after the next poll. The plain `/runs`
+page (`src/app/(app)/runs/page.tsx`) gained a small "Team" badge (only rendered when
+`run.team_id` is set) and a `runHref()` helper that routes a team row to
+`/agents/teams/{team_id}/runs/{id}` instead of `/runs/{id}` — before this, a team run in that flat
+list was indistinguishable from an ordinary one and linked to the wrong, broken page.
+`/runs/[id]/page.tsx` itself also gained a defensive `router.replace` (with an early-return guard
+so the wrong pipeline never flashes first) for anyone who still lands there directly — an old
+bookmark, a shared link — rather than leaving that as a dead end. Live-verified in the browser:
+"Recent runs" populated correctly, clicking a row and clicking a `/runs` "Team" row both landed on
+the right trace page, and navigating straight to the old `/runs/{id}` URL redirected correctly.
