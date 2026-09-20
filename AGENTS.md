@@ -657,8 +657,55 @@ clearly and needed zero new dependency, consistent with this app's own establish
 library a plain block doesn't justify" restraint.
 
 **Filter tabs are the plan's own fixed 6** (All/Finance/Comms/Marketing/Engineering/Ops), not
-derived from whatever categories the API happens to return — they line up exactly with the 8
-seeded templates' real categories, so this isn't actually a mismatch risk today, but a category
-added later without a matching tab would silently have no way to filter to it specifically (still
-reachable via "All"). Worth revisiting if the backend catalog ever grows past what the original 5
-categories cover.
+derived from whatever categories the API happens to return — they line up exactly with the (now
+10, after the backend's own `000016` tool-coverage follow-up the same day) seeded templates' real
+categories, so this isn't actually a mismatch risk today, but a category added later without a
+matching tab would silently have no way to filter to it specifically (still reachable via "All").
+Worth revisiting if the backend catalog ever grows past what the original 5 categories cover.
+
+## Workflow 20 — daily email digest (`src/hooks/useDigestSettings.ts`,
+`src/app/(app)/settings/notifications/page.tsx`)
+
+Built 2026-09-20 (see `founderstack-api-go/CLAUDE.md`'s own workflow 20 section for the full
+backend build — the Brevo-reusing scheduler, the org-timezone-aware "yesterday" math, the
+unsubscribe token signer). Extends the **existing** `/settings/notifications` page (built for
+workflow 10's approval-gate Slack/push settings) with a third card, `DailyDigestCard` — no new
+route, no new sidebar entry, since both already existed.
+
+**No new UI primitive for the enable/disable toggle** — this app has never had a `Switch`
+component (checked `src/components/ui/` first; it doesn't exist), so it's a small hand-rolled
+`role="switch"` `<button>` + an absolutely-positioned thumb `<span>`, styled with the app's
+existing `--primary`/`--muted` tokens, not a new dependency for one control.
+
+**The hour picker is one native `<select>` of all 24 pre-formatted `"H:00 AM/PM"` options**, not
+literally 2 separate hour + AM/PM controls the plan's own wording sketches — stores the 0-23
+value the backend's `digest_send_hour` expects directly (`value={h}` on each `<option>`), so no
+12h/24h conversion happens anywhere in this component. The timezone `<select>` is a curated list
+of ~20 common IANA zones (no picker library installed anywhere in this app) with whichever zone
+is already saved or browser-detected (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
+computed inline in the render body — safe here specifically because this branch never renders
+until `data` has already loaded client-side, well past hydration, so there's no SSR/client
+timezone mismatch to worry about) appended if it isn't already in that list, so a founder's real
+zone never silently disappears from the dropdown.
+
+**Same "no `useEffect` state sync" shape as `SlackChannelForm`** (this app's own established
+pattern, hit once for real during workflow 9's build — see that section) — `enabled`/`hour`/
+`timezone` all start `undefined` and fall back to the saved query value until the founder
+actually touches a control; every control saves immediately on change (no separate "Save"
+button, unlike the Slack channel input), matching the plan's own toggle/select-driven UX rather
+than a form-submit pattern.
+
+**Preview section is a static mockup, not live data** — deliberately, matching the plan's own
+"shows a static mockup of what the digest looks like" wording; "Send test email" (right above it)
+is what actually exercises the real pipeline against real (if sparse, in a fresh org) data.
+
+**Verified live in a real browser this session** (Claude-in-Chrome): toggling the switch on/off
+correctly showed/hid the schedule controls and preview; changing the hour via both a direct
+dropdown click and keyboard arrow-key selection persisted correctly across a full page reload
+(confirmed `GET /settings/digest` returning the newly-saved hour, not a stale client-side value);
+"Send test email" produced a "Check your inbox!" toast, and the backend's own log confirmed the
+real end-to-end call — correct recipient (the signed-in admin's own email, not every org member),
+correct subject (`"Your FounderStack digest for Saturday, Sep 19"`, the actual previous calendar
+day) — degrading to a logged no-op send exactly as designed, since no real `BREVO_API_KEY` is
+configured in this dev environment. Settings were reset back to enabled/8:00 AM/UTC afterward, so
+the real dev org's config wasn't left in a testing-only state.
