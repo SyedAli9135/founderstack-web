@@ -583,3 +583,32 @@ export interface TeamRunSummary {
   created_at: string;
 }
 
+// Workflow 19 (Agent Templates Marketplace) — matches
+// internal/api/templates/handler.go's templateSummary exactly.
+// `icon` is a brandIconMap key (src/components/integrations/brand-icons.tsx)
+// — one real, already-connectable provider per template, not a separate
+// icon vocabulary of its own.
+export interface AgentTemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  is_featured: boolean;
+  tool_count: number;
+}
+
+// matches templateDetail exactly — the full preview a founder sees
+// before installing.
+export interface AgentTemplateDetail {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  system_prompt: string;
+  model: string;
+  allowed_tools: string[];
+  icon: string;
+  is_featured: boolean;
+}
+

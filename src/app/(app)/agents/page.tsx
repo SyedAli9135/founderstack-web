@@ -6,7 +6,7 @@ import { useAgents, useDeleteAgent } from "@/hooks/useAgents";
 import { usePermissions } from "@/hooks/useTeam";
 import { Agent } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
-import { Bot, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Bot, Loader2, Plus, Pencil, Sparkles, Trash2 } from "lucide-react";
 
 function AgentCard({ agent, canModify }: { agent: Agent; canModify: boolean }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -141,11 +141,19 @@ export default function AgentsPage() {
               : "An owner or admin hasn't created any agents yet."}
           </p>
           {canModifyAgents && (
-            <Link href="/agents/new">
-              <Button size="sm" variant="outline" className="mt-2">
-                New agent
-              </Button>
-            </Link>
+            <div className="mt-2 flex items-center gap-2">
+              <Link href="/agents/new">
+                <Button size="sm" variant="outline">
+                  New agent
+                </Button>
+              </Link>
+              <Link href="/templates">
+                <Button size="sm">
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  Browse Templates
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       ) : (

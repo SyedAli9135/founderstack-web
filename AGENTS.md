@@ -625,3 +625,40 @@ so the wrong pipeline never flashes first) for anyone who still lands there dire
 bookmark, a shared link — rather than leaving that as a dead end. Live-verified in the browser:
 "Recent runs" populated correctly, clicking a row and clicking a `/runs` "Team" row both landed on
 the right trace page, and navigating straight to the old `/runs/{id}` URL redirected correctly.
+
+## Workflow 19 — agent templates marketplace (`src/hooks/useTemplates.ts`,
+`src/components/templates/TemplatePreviewSheet.tsx`, `src/app/(app)/templates/`)
+
+Built 2026-09-20 (see `founderstack-api-go/CLAUDE.md`'s own workflow 19 section for the backend
+side — the global, un-org-scoped `agent_templates` table, the 8 real-integration templates
+replacing the plan's original 5, the duplicate-name-on-second-install fix a real integration test
+caught). `/templates` (gallery), a `TemplatePreviewSheet` slide-in, a "Browse Templates" button on
+the Agents page's empty state, and a new "Templates" sidebar nav entry.
+
+**Template card icons reuse the existing `brandIconMap`/`brandColorMap`**
+(`src/components/integrations/brand-icons.tsx`, built for the Integrations page) — a template's
+`icon` field is exactly one of those same provider-name keys (`"stripe"`, `"slack"`, ...), not a
+second icon vocabulary. Zero new icon assets, and a template can never show different branding
+than the Integrations page does for the same provider, since they're now the literal same lookup.
+
+**Install has two entry points, matching the plan's own card spec**: a card's own "Install"
+button installs immediately (no preview step), and the `TemplatePreviewSheet` (opened via a
+card's "Preview" button) has its own "Install this Agent" CTA at the bottom for anyone who wants
+to read the full system prompt and tool list first. Both call the same `useInstallTemplate`
+mutation and land on the same `onInstalled` handler — redirect to `/agents/{agent_id}`, Sonner
+toast "Agent installed! Customize it here." — so there's exactly one install code path, not two
+that could drift.
+
+**No syntax highlighting on the system prompt preview** — the plan's own wording said "syntax
+highlighted," but a system prompt is plain English instruction text, not source code; there is no
+language for a highlighter to apply here; a plain monospace `<pre>` block (matching this app's
+existing convention for `run.output`, `LiveFeed`'s tool-result expansion, etc.) already reads
+clearly and needed zero new dependency, consistent with this app's own established "don't add a
+library a plain block doesn't justify" restraint.
+
+**Filter tabs are the plan's own fixed 6** (All/Finance/Comms/Marketing/Engineering/Ops), not
+derived from whatever categories the API happens to return — they line up exactly with the 8
+seeded templates' real categories, so this isn't actually a mismatch risk today, but a category
+added later without a matching tab would silently have no way to filter to it specifically (still
+reachable via "All"). Worth revisiting if the backend catalog ever grows past what the original 5
+categories cover.

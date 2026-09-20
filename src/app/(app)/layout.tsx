@@ -25,6 +25,7 @@ import {
   BarChart3,
   Gauge,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const navItems = [
   // below (Users icon, workflow 13 — org membership/roles, a completely
   // different concept from workflow 18's agent_teams).
   { href: "/agents/teams", label: "Agent Teams", icon: Network },
+  { href: "/templates", label: "Templates", icon: Sparkles },
   { href: "/workflows", label: "Workflows", icon: Workflow },
   { href: "/runs", label: "Runs", icon: History },
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
