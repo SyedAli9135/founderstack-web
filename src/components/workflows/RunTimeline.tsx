@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Brain, Sparkles, Wrench, UserCheck, ShieldCheck, FileCheck, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import { Brain, Sparkles, Wrench, UserCheck, ShieldCheck, FileCheck, ChevronRight, CheckCircle2, XCircle, Share2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { StepType, WorkflowStep } from "@/lib/api/types";
 
@@ -12,6 +12,8 @@ const STEP_META: Record<StepType, { label: string; icon: LucideIcon }> = {
   approval: { label: "Approval", icon: UserCheck },
   validation: { label: "Validation", icon: ShieldCheck },
   report: { label: "Report", icon: FileCheck },
+  decompose: { label: "Decompose", icon: Brain },
+  a2a_dispatch: { label: "A2A dispatch", icon: Share2 },
 };
 
 function formatDuration(ms?: number): string {

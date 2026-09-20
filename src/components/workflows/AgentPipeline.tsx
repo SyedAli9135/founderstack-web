@@ -1,22 +1,39 @@
 "use client";
 
 import { useMemo } from "react";
-import { Brain, Wrench, ShieldCheck, FileCheck, UserCheck, Loader2, Check, X } from "lucide-react";
+import { Brain, Wrench, ShieldCheck, FileCheck, UserCheck, Loader2, Check, X, Share2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { RunEvent, RunNodeName, RunStatus } from "@/lib/api/types";
 
 type NodeStatus = "pending" | "active" | "completed" | "failed";
 
+export interface PipelineNode {
+  name: string;
+  label: string;
+  icon: LucideIcon;
+}
+
 // The 4 nodes graph.BuildNodes always runs, in order — matches what's
 // actually built today, not the original plan's aspirational 6-node list
 // (a rag_retriever step doesn't exist yet; see WORKFLOW_PLAN_GO.md).
-const PIPELINE_NODES: { name: RunNodeName; label: string; icon: LucideIcon }[] = [
+export const PIPELINE_NODES: { name: RunNodeName; label: string; icon: LucideIcon }[] = [
   { name: "planner", label: "Planner", icon: Brain },
   { name: "executor", label: "Executor", icon: Wrench },
   { name: "validator", label: "Validator", icon: ShieldCheck },
   { name: "reporter", label: "Reporter", icon: FileCheck },
 ];
-const PIPELINE_ORDER: string[] = PIPELINE_NODES.map((n) => n.name);
+
+// Workflow 18: the orchestrator's own graph (BuildTeamNodes) swaps
+// "executor" for "delegate" — everything else is identical. A specialist's
+// own sub-run still uses the ordinary PIPELINE_NODES above unchanged
+// (BuildNodes, not BuildTeamNodes), since a specialist agent is a normal
+// single-agent run.
+export const TEAM_ORCHESTRATOR_NODES: PipelineNode[] = [
+  { name: "planner", label: "Planner", icon: Brain },
+  { name: "delegate", label: "Delegate", icon: Share2 },
+  { name: "validator", label: "Validator", icon: ShieldCheck },
+  { name: "reporter", label: "Reporter", icon: FileCheck },
+];
 
 function deriveNodeStatuses(events: RunEvent[]): {
   statuses: Record<string, NodeStatus>;
@@ -61,18 +78,20 @@ function deriveNodeStatuses(events: RunEvent[]): {
  * weren't reached — pending is the honest answer either way). Never
  * overrides a status the live stream actually reported.
  */
-function backfillFromFinalStatus(finalStatus?: RunStatus, finalNode?: string): Record<string, NodeStatus> {
+function backfillFromFinalStatus(nodeOrder: string[], finalStatus?: RunStatus, finalNode?: string): Record<string, NodeStatus> {
   const backfill: Record<string, NodeStatus> = {};
   if (finalStatus === "completed") {
-    for (const node of PIPELINE_ORDER) backfill[node] = "completed";
+    for (const node of nodeOrder) backfill[node] = "completed";
     return backfill;
   }
   if (finalStatus === "failed" || finalStatus === "cancelled") {
-    // approval_gate isn't one of the 4 visualized nodes — a run that
-    // stopped there got all the way past executor.
-    const stopIndex = finalNode === "approval_gate" ? 2 : finalNode ? PIPELINE_ORDER.indexOf(finalNode) : -1;
+    // approval_gate isn't one of the visualized nodes (and doesn't exist
+    // at all on the team-orchestrator graph — see TEAM_ORCHESTRATOR_NODES)
+    // — a single-agent run that stopped there got all the way past
+    // executor, i.e. as far as "validator" in nodeOrder.
+    const stopIndex = finalNode === "approval_gate" ? nodeOrder.indexOf("validator") : finalNode ? nodeOrder.indexOf(finalNode) : -1;
     if (stopIndex === -1) return backfill;
-    PIPELINE_ORDER.forEach((node, i) => {
+    nodeOrder.forEach((node, i) => {
       if (i < stopIndex) backfill[node] = "completed";
       else if (i === stopIndex) backfill[node] = "failed";
     });
@@ -83,18 +102,25 @@ function backfillFromFinalStatus(finalStatus?: RunStatus, finalNode?: string): R
 /** Row of node-state cards — pulses the active node, checks off completed
  * ones, flags a failure. See WORKFLOW_PLAN_GO.md's Workflow 9 acceptance
  * criteria ("show which agent node is currently active... so the founder
- * knows the system hasn't hung"). */
+ * knows the system hasn't hung"). `nodes` defaults to the single-agent
+ * PIPELINE_NODES — workflow 18's multi-agent pipeline passes
+ * TEAM_ORCHESTRATOR_NODES for the orchestrator's own lane, and reuses the
+ * default for each specialist lane (a specialist is an ordinary
+ * single-agent run). */
 export function AgentPipeline({
   events,
   finalStatus,
   finalNode,
+  nodes = PIPELINE_NODES,
 }: {
   events: RunEvent[];
   finalStatus?: RunStatus;
   finalNode?: string;
+  nodes?: PipelineNode[];
 }) {
+  const nodeOrder = useMemo(() => nodes.map((n) => n.name), [nodes]);
   const { statuses: liveStatuses, awaitingApproval } = useMemo(() => deriveNodeStatuses(events), [events]);
-  const backfill = useMemo(() => backfillFromFinalStatus(finalStatus, finalNode), [finalStatus, finalNode]);
+  const backfill = useMemo(() => backfillFromFinalStatus(nodeOrder, finalStatus, finalNode), [nodeOrder, finalStatus, finalNode]);
   // Live-derived status always wins where we have it; backfill only fills
   // in nodes the stream never reported anything for.
   const statuses = useMemo(() => ({ ...backfill, ...liveStatuses }), [backfill, liveStatuses]);
@@ -102,7 +128,7 @@ export function AgentPipeline({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {PIPELINE_NODES.map((node) => (
+        {nodes.map((node) => (
           <NodeCard key={node.name} label={node.label} Icon={node.icon} status={statuses[node.name] ?? "pending"} />
         ))}
       </div>

@@ -511,3 +511,99 @@ actual populated table (real entries, resolved actor names, working filters, 3-p
 pagination) was verified via direct `curl` calls against the real dev org's own admin account
 instead, since this session's browser had no admin-account session available to click through —
 all of that data is documented in `founderstack-api-go/CLAUDE.md`'s own workflow 17 section.
+
+## Workflow 18 — multi-agent team run / A2A (`src/hooks/useAgentTeams.ts`,
+`src/components/workflows/{MultiAgentPipeline,AgentPipeline,LiveFeed,RunTimeline}.tsx`,
+`src/app/(app)/agents/teams/`)
+
+Built 2026-09-20, backend-first (see `founderstack-api-go/CLAUDE.md`'s own workflow 18 section
+for the full backend build — real A2A `tasks/send` over a genuine HTTP loopback, `errgroup`
+parallel dispatch, SSE event mirroring). 4 new routes: `/agents/teams` (list), `/agents/teams/new`
+(create form), `/agents/teams/[id]` (detail + "Run team" input), `/agents/teams/[id]/runs/[runId]`
+(the live multi-agent run page).
+
+**Named `useAgentTeams`/`AgentTeamSummary`/etc, not `useTeam`/`Team`** — deliberately, to stay
+clear of workflow 13's already-existing `useTeam.ts` (org membership/roles, a completely
+different "team" concept from this workflow's `agent_teams`). Same reasoning gave the sidebar nav
+entry its own label, "Agent Teams" (`Network` icon) — distinct from `/settings/team`'s existing
+"Team" entry (`Users` icon) — see `layout.tsx`'s own inline comment. (`NavLink`'s active-state
+match is a plain `pathname.startsWith(href + "/")`, so visiting `/agents/teams/...` highlights
+both "Agents" and "Agent Teams" simultaneously — a pre-existing, harmless quirk this workflow is
+just the first to actually expose, not a new bug worth a shared-component change for.)
+
+**One unified SSE stream, not one per specialist**: the team run page calls
+`useWorkflowStream(runId)` exactly once, against the *orchestrator's* own run id — a specialist's
+events arrive already mirrored onto it (`graph.EventBus.LinkChild`, backend-side), tagged with the
+new `RunEvent.sub_run_id`/`agent_role` fields. `MultiAgentPipeline.tsx` is the only place that
+groups by `sub_run_id`; every other component (`LiveFeed`, `AgentPipeline`) just renders whatever
+subset of `events` it's handed, unaware a team run exists at all — same "zero risk to the existing
+single-agent path" discipline the backend held throughout.
+
+**`AgentPipeline.tsx` gained one optional prop (`nodes`, defaulting to the existing
+`PIPELINE_NODES`), not a rewrite** — the orchestrator's own graph swaps `executor` for `delegate`
+(`TEAM_ORCHESTRATOR_NODES`, new export), but a specialist's sub-run is an *ordinary* single-agent
+run, so it reuses `AgentPipeline` with zero prop changes beyond a filtered event list.
+`MultiAgentPipeline.tsx` renders the orchestrator's own lane with `TEAM_ORCHESTRATOR_NODES` on
+top, then one `AgentPipeline` (default nodes) per specialist lane below it — the "orchestrator at
+top, parallel branches below" layout the plan's own acceptance criteria describe. This is a
+composed wrapper component, not a literal rewrite of `AgentPipeline` itself the way the plan's
+own checklist phrased it ("Update `<AgentPipeline />` for multi-agent layout") — a deliberate
+judgment call: reusing the single-agent component unmodified for every specialist lane is lower
+risk than teaching one component two entirely different visual layouts.
+
+**Collapsible per-specialist sub-timelines reuse `RunTimeline`/`useRunSteps` completely
+unchanged** — a specialist's sub-run is a real `workflow_runs` row like any other, so
+`GET /runs/{specialistRunId}/steps` already works with zero backend changes; each specialist's
+card in `MultiAgentPipeline.tsx` is a click-to-expand section that only fires `useRunSteps` once
+expanded (a team run with several specialists shouldn't cost N unrequested trace fetches). This
+is workflow 18's own acceptance criterion ("each specialist agent's steps appear in the run trace
+as collapsible sub-timelines") at the UI layer.
+
+**`LiveFeed.tsx` additions**: a new `delegated` event renders as "→ Delegated to Finance Agent"
+(`Share2` icon) the instant the orchestrator dispatches a subtask — before the specialist's own
+mirrored events start arriving, since `graph.DelegatedData` publishes on dispatch, not completion.
+Every other row type gained a small `RoleBadge` (a role-name pill, rendered only when
+`ev.agent_role` is set) so a founder scanning the *unified* feed can tell which specialist a given
+line came from — invisible for an ordinary single-agent run, since `agent_role` is only ever set
+on a mirrored event.
+
+**Backend response-shape fix caught before shipping, not after**: `POST /teams/{id}/run`'s first
+draft returned `{id, status, created_at}`; changed to match `workflows.Handler.Run`'s existing
+`{run_id, status, stream_url}` shape exactly (`internal/api/teams/handler.go`) once this
+frontend's own `useRunAgentTeam`/`useRunWorkflow` were compared side by side — both now navigate
+on `data.run_id` identically, so this hook could reuse the same mutation shape rather than
+inventing a second convention for what's functionally the same "a run was queued" response.
+
+**Verification, this session**: `tsc --noEmit`, `eslint`, and `next build` all clean (all 4 new
+routes appear in the build's route table). Both the real Go API (compiled from source, not just
+`go test`) and the real Next.js dev server were booted locally and driven via `curl` — team
+create/list/get/manifest/run(preflight-gate)/delete all round-tripped correctly against real
+Postgres through the actual running binaries, and all 4 new frontend routes compile and correctly
+redirect to sign-in when unauthenticated (Clerk's `proxy.ts` middleware), no server errors in
+either process's log. Claude-in-Chrome was disconnected for the earlier part of this session (an
+already-documented, ongoing flakiness — see workflow 12's and 13's own sections above), but
+**reconnected later the same day and was used for a full real-browser pass** — see below.
+
+**Real browser verification, same session, once Claude-in-Chrome reconnected**: added 3 new
+`mock:team-*` entries to `founderstack-api-go/internal/core/llm/mockscenarios.go` (orchestrator/
+finance/ops, one per team role) so the whole flow runs with zero live BYOK calls, then clicked
+through it end to end against the founder's real dev org (`MOCK_LLM_MODE=true` on the backend —
+affects every org on that process, including the real one, by design; see
+`MOCK_LLM_TESTING.md`'s own warning about that). Confirmed live and correct: the empty-state team
+list, the create-team form's validation, the team detail page (orchestrator + both specialist
+cards with role badges), triggering a run from the actual textarea (a first click with only
+placeholder text correctly showed the "describe the task" validation error — proved the mock
+placeholder-vs-value distinction works, not a bug), the live multi-agent pipeline (orchestrator
+lane on top, 2 specialist lanes below labeled "running in parallel"), delegation events and
+per-line role badges in the unified `LiveFeed`, the orchestrator's own trace showing 2 real
+parallel `A2A dispatch` entries with distinct real durations, a specialist's collapsible
+sub-timeline expanding to its own `Planning`/`Reasoning`/`Validation`/`Report` steps, and the
+final synthesized output. One cosmetic-only nuance found and documented (not fixed — see
+`MOCK_LLM_TESTING.md`'s own note): on an extremely fast mock run, the cost stats can render
+`$0.0000`/incomplete for the first second or two after navigating straight from "Run team" (a
+REST fetch racing a still-in-flight detached goroutine), self-correcting on any reload or once
+the SSE-driven invalidation catches up — real BYOK calls are slow enough this window never
+actually shows up in practice. The `[TEST] Team Orchestrator`/`[TEST] Team Finance`/`[TEST] Team
+Ops` agents and `[TEST] Board Prep Team` team were left in the real dev org afterward as a
+reusable fixture, matching every other `[TEST] *` agent already there — not cleaned up as
+throwaway data.

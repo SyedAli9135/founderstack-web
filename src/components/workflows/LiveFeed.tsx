@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Sparkles,
   AlertTriangle,
+  Share2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -23,6 +24,7 @@ import {
   NodeTransitionEventData,
   CompleteEventData,
   IntegrationErrorEventData,
+  DelegatedEventData,
 } from "@/lib/api/types";
 
 function isReasoningData(data: RunEvent["data"]): data is ReasoningEventData {
@@ -47,6 +49,23 @@ function isCompleteData(data: RunEvent["data"]): data is CompleteEventData {
 
 function isIntegrationErrorData(data: RunEvent["data"]): data is IntegrationErrorEventData {
   return typeof data === "object" && data !== null && "reconnect_url" in data;
+}
+
+function isDelegatedData(data: RunEvent["data"]): data is DelegatedEventData {
+  return typeof data === "object" && data !== null && "sub_run_id" in data;
+}
+
+/** Workflow 18: which specialist a mirrored event came from — undefined
+ * for every ordinary run and for the orchestrator's own events (see
+ * RunEvent.agent_role's doc comment), so this renders nothing for a
+ * single-agent run's feed. */
+function RoleBadge({ role }: { role?: string }) {
+  if (!role) return null;
+  return (
+    <span className="mr-1 inline-flex shrink-0 items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {role}
+    </span>
+  );
 }
 
 function capitalize(s: string): string {
@@ -85,6 +104,7 @@ function nodeLabel(data: RunEvent["data"]): string {
   const labels: Record<string, string> = {
     planner: "Planner",
     executor: "Executor",
+    delegate: "Delegate",
     approval_gate: "Approval gate",
     validator: "Validator",
     reporter: "Reporter",
@@ -112,7 +132,28 @@ function ReasoningRow({ ev }: { ev: RunEvent }) {
   return (
     <div className={`flex items-start gap-2 border-l-2 border-primary/30 py-1.5 pl-2.5 text-xs ${rowAnimation}`}>
       <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
+      <RoleBadge role={ev.agent_role} />
       <span className="italic text-foreground/90">{text}</span>
+      <span className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground/70">{formatTime(ev.timestamp)}</span>
+    </div>
+  );
+}
+
+/** Workflow 18: "→ Delegated to Finance Agent" — fires the instant the
+ * orchestrator dispatches a subtask, before the specialist's own mirrored
+ * events start arriving (see graph.DelegatedData's doc comment), so the
+ * live feed shows delegation happening in real time rather than only
+ * after the fact. */
+function DelegatedRow({ ev }: { ev: RunEvent }) {
+  if (!isDelegatedData(ev.data)) return null;
+  const { role, agent_name } = ev.data;
+  return (
+    <div className={`flex items-start gap-2 py-1 text-xs ${rowAnimation}`}>
+      <Share2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+      <span className="text-foreground">
+        → Delegated to <span className="font-medium">{agent_name}</span>{" "}
+        <span className="text-muted-foreground">({role})</span>
+      </span>
       <span className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground/70">{formatTime(ev.timestamp)}</span>
     </div>
   );
@@ -135,6 +176,7 @@ function ToolResultRow({ ev }: { ev: RunEvent }) {
         className={`flex w-full items-start gap-2 text-left ${result ? "cursor-pointer" : "cursor-default"}`}
       >
         <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${isError ? "text-destructive" : "text-muted-foreground"}`} />
+        <RoleBadge role={ev.agent_role} />
         <span className={isError ? "text-destructive" : "text-foreground"}>
           {isError ? `${tool} failed` : `${tool} returned a result`}
         </span>
@@ -167,6 +209,7 @@ function IntegrationErrorRow({ ev }: { ev: RunEvent }) {
       className={`flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs ${rowAnimation}`}
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+      <RoleBadge role={ev.agent_role} />
       <span className="text-foreground">{capitalize(service)} needs reconnection.</span>
       <Link href={reconnect_url} className="font-medium text-primary hover:underline">
         Reconnect now →
@@ -209,6 +252,7 @@ export function LiveFeed({ events, isLive }: { events: RunEvent[]; isLive?: bool
         if (ev.type === "reasoning") return <ReasoningRow key={i} ev={ev} />;
         if (ev.type === "tool_result") return <ToolResultRow key={i} ev={ev} />;
         if (ev.type === "integration_error") return <IntegrationErrorRow key={i} ev={ev} />;
+        if (ev.type === "delegated") return <DelegatedRow key={i} ev={ev} />;
 
         const { icon: Icon, text, tone } = describeEvent(ev);
         return (
@@ -218,6 +262,7 @@ export function LiveFeed({ events, isLive }: { events: RunEvent[]; isLive?: bool
                 tone === "error" ? "text-destructive" : tone === "success" ? "text-primary" : "text-muted-foreground"
               }`}
             />
+            <RoleBadge role={ev.agent_role} />
             <span className={tone === "error" ? "text-destructive" : "text-foreground"}>{text}</span>
             <span className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground/70">{formatTime(ev.timestamp)}</span>
           </div>

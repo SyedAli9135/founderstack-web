@@ -182,13 +182,27 @@ export interface RunDetail extends WorkflowRun {
 // The 5 nodes graph.BuildNodes registers — "approval_gate" only ever
 // appears in the stream when a destructive/financial tool call actually
 // suspends the run for a human decision.
-export type RunNodeName = "planner" | "executor" | "approval_gate" | "validator" | "reporter";
+// "delegate" (workflow 18) only ever appears on a team's orchestrator run
+// — BuildTeamNodes swaps it in for "executor" (see graph's own doc
+// comment); a specialist's own sub-run still uses "executor" like any
+// ordinary single-agent run.
+export type RunNodeName = "planner" | "executor" | "delegate" | "approval_gate" | "validator" | "reporter";
 
 // workflow 11's persisted trace — matches GET /runs/{id}/steps' workflowStep
 // exactly. Distinct from RunEvent above: this is the durable Postgres
 // record (available after a run finishes, or for a run whose live SSE
 // events never arrived), not the live stream.
-export type StepType = "planning" | "reasoning" | "tool_call" | "approval" | "validation" | "report";
+// "decompose"/"a2a_dispatch" (workflow 18) only ever appear on a team's
+// orchestrator run — the delegate node's own 2 step_type values.
+export type StepType =
+  | "planning"
+  | "reasoning"
+  | "tool_call"
+  | "approval"
+  | "validation"
+  | "report"
+  | "decompose"
+  | "a2a_dispatch";
 
 export interface WorkflowStep {
   node_name: RunNodeName;
@@ -232,7 +246,8 @@ export type RunEventType =
   | "error"
   | "token"
   | "complete"
-  | "integration_error";
+  | "integration_error"
+  | "delegated";
 
 // reasoning's data — the model's own text on a turn, surfaced live even
 // when that turn also requests a tool call (real providers routinely
@@ -290,12 +305,24 @@ export interface IntegrationErrorEventData {
   reconnect_url: string;
 }
 
+// delegated's data — matches graph.DelegatedData exactly. Workflow 18:
+// published on the orchestrator's own run the instant a subtask is
+// dispatched, before the specialist's own events start arriving (mirrored
+// — see RunEvent.sub_run_id below) — lets the live feed render "→
+// Delegated to Finance Agent" without waiting on the specialist to
+// actually start.
+export interface DelegatedEventData {
+  role: string;
+  agent_name: string;
+  sub_run_id: string;
+}
+
 // RunEvent.data's shape depends on RunEvent.type: NodeTransitionEventData
 // for node_start/node_end, ToolCallEventData for tool_call,
 // ToolResultEventData for tool_result, CompleteEventData for complete,
 // ApprovalRequiredEventData for approval_required, IntegrationErrorEventData
-// for integration_error, or a plain error string for error. See
-// internal/core/graph's Event/EventBus.
+// for integration_error, DelegatedEventData for delegated, or a plain
+// error string for error. See internal/core/graph's Event/EventBus.
 export interface RunEvent {
   type: RunEventType;
   run_id: string;
@@ -307,8 +334,18 @@ export interface RunEvent {
     | ToolResultEventData
     | CompleteEventData
     | ApprovalRequiredEventData
-    | IntegrationErrorEventData;
+    | IntegrationErrorEventData
+    | DelegatedEventData;
   timestamp: string;
+  // Workflow 18: only ever set on a *mirrored* copy of a specialist's own
+  // event (see graph.EventBus.LinkChild) — undefined for every ordinary
+  // (non-team) run and for the orchestrator's own events, so existing
+  // single-agent UI code that never checks these fields keeps working
+  // unchanged. sub_run_id is the specialist's own run id (its lane in the
+  // multi-agent pipeline); agent_role is the team_role it was dispatched
+  // under.
+  sub_run_id?: string;
+  agent_role?: string;
 }
 
 // Workflow 10 — matches internal/api/approvals/handler.go's
@@ -451,5 +488,79 @@ export interface AuditLogCursor {
 export interface AuditLogsResponse {
   entries: AuditLogEntry[];
   next_cursor?: AuditLogCursor | null;
+}
+
+// Workflow 18 (multi-agent team run / A2A) — matches
+// internal/api/teams/handler.go's teamSummary/teamDetail/teamMember/
+// teamRunTrace/childRun exactly.
+export interface AgentTeamMember {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_description?: string;
+  role: string;
+  priority: number;
+}
+
+export interface AgentTeamSummary {
+  id: string;
+  name: string;
+  description?: string;
+  orchestrator_agent_id: string;
+  orchestrator_agent_name: string;
+  parallel_execution: boolean;
+  timeout_seconds: number;
+  member_count?: number;
+  created_at: string;
+}
+
+export interface AgentTeamDetail extends AgentTeamSummary {
+  members: AgentTeamMember[];
+}
+
+export interface CreateAgentTeamMemberInput {
+  agent_id: string;
+  role: string;
+  priority?: number;
+}
+
+export interface CreateAgentTeamInput {
+  name: string;
+  description?: string;
+  orchestrator_agent_id: string;
+  members: CreateAgentTeamMemberInput[];
+}
+
+// matches internal/api/teams/handler.go's childRun exactly — one
+// specialist's dispatched sub-run within a team run's aggregated trace.
+export interface TeamChildRun {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  role?: string;
+  status: RunStatus;
+  current_node?: string;
+  output?: string;
+  cost_so_far_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+}
+
+// matches internal/api/teams/handler.go's teamRunTrace exactly — the
+// orchestrator's own run plus every specialist it dispatched.
+export interface TeamRunTrace {
+  id: string;
+  status: RunStatus;
+  current_node?: string;
+  output?: string;
+  cost_so_far_usd: number;
+  started_at?: string;
+  completed_at?: string;
+  duration_ms?: number;
+  created_at: string;
+  specialists: TeamChildRun[];
 }
 

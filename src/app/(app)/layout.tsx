@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   BellRing,
   Users,
+  Network,
   Mail,
   BarChart3,
   Gauge,
@@ -32,6 +33,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
+  // "Agent Teams" (Network icon), distinct from settings' own "Team" link
+  // below (Users icon, workflow 13 — org membership/roles, a completely
+  // different concept from workflow 18's agent_teams).
+  { href: "/agents/teams", label: "Agent Teams", icon: Network },
   { href: "/workflows", label: "Workflows", icon: Workflow },
   { href: "/runs", label: "Runs", icon: History },
   { href: "/approvals", label: "Approvals", icon: ShieldAlert },
