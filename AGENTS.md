@@ -709,3 +709,62 @@ correct subject (`"Your FounderStack digest for Saturday, Sep 19"`, the actual p
 day) — degrading to a logged no-op send exactly as designed, since no real `BREVO_API_KEY` is
 configured in this dev environment. Settings were reset back to enabled/8:00 AM/UTC afterward, so
 the real dev org's config wasn't left in a testing-only state.
+
+## Workflow 21 — practice & client workspaces (`src/hooks/usePortfolio.ts`,
+`src/components/portfolio/`, `src/app/(app)/practice/`)
+
+**Switching workspaces is Clerk's `setActive({ organization })`, nothing more.** The backend reads
+the active org straight out of the session token (`ActiveOrganizationID`), so there's no app-side
+"current workspace" state, cookie, or proxy logic to keep in sync — `src/proxy.ts` only gained
+`/practice(.*)` as a protected route. `useSwitchWorkspace` always navigates away after switching
+(to `/dashboard` by default), since an id-scoped page from the old workspace (`/runs/<id>`) would
+just 404 in the new one.
+
+**`ResetQueriesOnOrgSwitch` (`providers.tsx`) is load-bearing**: no React Query key carries the org,
+so without it every cached response from the previous workspace would keep rendering after a
+switch — a cross-client data leak in the UI even though the backend is correctly isolated. It
+watches `useAuth().orgId` and cancels + resets every query on change, which also covers switches
+made outside the switcher (Clerk's own UI, another tab). Don't add org-scoped caching elsewhere
+(e.g. `localStorage`) without keying it by org.
+
+**`OnboardingShield` recovers from an unusable active org instead of dead-ending.** When the backend
+says the session's org can't be used (`ORGANIZATION_NOT_FOUND`/`USER_NOT_SYNCHRONIZED` — e.g. a
+removed client workspace, or a Clerk org the backend never synced — or `409
+ACTIVE_ORGANIZATION_REQUIRED`), it asks `GET /me/workspaces` (identity-only, works even then) for
+usable workspaces and `setActive`s into the first (practice first), with a toast naming the
+unavailable org. Only a person with **no** usable workspace goes to `/invitations`. Two details
+that matter, both found live: candidates come from the backend, never Clerk's membership list
+(Clerk still lists removed/unsynced orgs — picking from it is how a session originally got stranded
+on a removed workspace); and recovery only acts on an error fetched *after* the last switch
+(`errorUpdatedAt` vs. `lastSwitchAt`), otherwise the previous org's cached error triggers a second,
+wrong switch. The toast's org name is resolved from the token's `orgId` via the user's memberships,
+since `useOrganization()` can briefly hold the previous org after a page load.
+
+**Active org is per tab until reload** (Clerk's own behavior): switching in tab 1 leaves tab 2 on its
+old workspace, with token, header, and data all still consistently that workspace; a reload picks up
+the new one. Never a mix.
+
+**`WorkspaceSwitcher`** (topbar, replacing the static "FounderStack" label) lists `GET
+/me/workspaces` grouped practice-first, built on base-ui `Menu` for keyboard/focus handling (this
+app has no shadcn dropdown). **`/practice`** shows summary tiles, a card per active client workspace
+(Open = switch into it), and a "Removed workspaces" list with Restore while inside the 30-day
+window. Remove goes through base-ui `AlertDialog` with the spec's exact copy; removing the
+workspace you're currently in switches you to the practice first. A new client workspace has no
+BYOK key yet, so opening it lands on onboarding — expected, BYOK is per workspace.
+
+**`/practice` is exempt from `OnboardingShield`'s BYOK redirect** — found live: from a brand-new
+(keyless) client workspace the Portfolio link bounced to onboarding, locking the operator out of
+the portfolio until they'd configured that client's key.
+
+**Live-verified 2026-09-26** (create, switch both ways, cache reset, remove dialog, restore, recovery
+from an unusable active org, document isolation and run/approval rollup via mock mode, two tabs,
+390px layout, a real second account as practice member and as member of one client workspace, and a client
+workspace of *another* practice showing "Portfolio unavailable"). `NOT_A_PRACTICE_MEMBER` and
+`ACTIVE_ORGANIZATION_REQUIRED` are in `client.ts`'s unlogged codes — both are handled states the
+UI renders, not faults.
+Portfolio shows sub-cent spend as "<$0.01", not "$0.00". For a non-admin the count tile reads "Your
+client workspaces" (no plan limit) and the empty state says they haven't been added to any — the
+list only ever holds workspaces the viewer belongs to, so "No client workspaces yet" was wrong for them. Note
+when driving this with Claude-in-Chrome: the automation tab reports `visibilityState: "hidden"`,
+so CSS transitions never advance and base-ui popups (menu, dialog) sit at `opacity: 0` — inject
+`*{transition:none!important}` in the tab; it's not an app bug.

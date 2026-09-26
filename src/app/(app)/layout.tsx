@@ -8,6 +8,7 @@ import { OnboardingShield } from "@/components/auth/OnboardingShield";
 import { PushPermissionPrompt } from "@/components/approvals/PushPermissionPrompt";
 import { usePendingApprovals } from "@/hooks/useApprovals";
 import { usePendingInvitations } from "@/hooks/usePendingInvitations";
+import { WorkspaceSwitcher } from "@/components/portfolio/WorkspaceSwitcher";
 import {
   LayoutDashboard,
   Bot,
@@ -26,6 +27,7 @@ import {
   Gauge,
   Shield,
   Sparkles,
+  LayoutGrid,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/practice", label: "Portfolio", icon: LayoutGrid },
   { href: "/agents", label: "Agents", icon: Bot },
   // "Agent Teams" (Network icon), distinct from settings' own "Team" link
   // below (Users icon, workflow 13 — org membership/roles, a completely
@@ -160,7 +163,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              <span className="text-sm font-medium text-muted-foreground">FounderStack</span>
+              <WorkspaceSwitcher />
             </div>
             <UserButton />
           </header>

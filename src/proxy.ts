@@ -7,7 +7,8 @@ const isProtectedRoute = createRouteMatcher([
   '/integrations(.*)',
   '/agents(.*)',
   '/workflows(.*)',
-  '/onboarding(.*)'
+  '/onboarding(.*)',
+  '/practice(.*)'
 ]);
 
 // The landing page route

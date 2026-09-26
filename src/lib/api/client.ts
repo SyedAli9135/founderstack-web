@@ -46,6 +46,15 @@ export class ApiError extends Error {
 // Exported so orgSync.ts has one source of truth instead of a duplicate list.
 export const EXPECTED_TRANSIENT_CODES = new Set(["USER_NOT_SYNCHRONIZED", "ORGANIZATION_NOT_FOUND"]);
 
+// The session names no active org while the person belongs to several —
+// OnboardingShield picks one automatically, so this resolves on its own.
+export const ACTIVE_ORG_REQUIRED_CODE = "ACTIVE_ORGANIZATION_REQUIRED";
+
+// Handled states the UI renders itself, not faults: a missing active org
+// (OnboardingShield resolves it) and a client workspace whose practice the
+// viewer isn't in (/practice shows "Portfolio unavailable").
+const UNLOGGED_CODES = new Set([ACTIVE_ORG_REQUIRED_CODE, "NOT_A_PRACTICE_MEMBER"]);
+
 export function useApiClient() {
   const { getToken } = useAuth();
 
@@ -71,7 +80,7 @@ export function useApiClient() {
       const requestId = response.headers.get("X-Request-ID") || body.error?.request_id;
       const error = new ApiError(message, response.status, body.error?.code, requestId);
 
-      if (!error.code || !EXPECTED_TRANSIENT_CODES.has(error.code)) {
+      if (!error.code || (!EXPECTED_TRANSIENT_CODES.has(error.code) && !UNLOGGED_CODES.has(error.code))) {
         console.error(`[API Error]${requestId ? ` (ReqID: ${requestId})` : ""} ${message}`);
       }
       throw error;

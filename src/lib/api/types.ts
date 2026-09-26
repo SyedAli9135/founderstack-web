@@ -612,3 +612,57 @@ export interface AgentTemplateDetail {
   is_featured: boolean;
 }
 
+
+// Workflow 21 (Practice & Client Workspace Model) — matches
+// internal/api/practice/handler.go's response shapes exactly.
+export type OrganizationType = "standard" | "practice" | "client_workspace";
+
+// GET /me/workspaces — one row per org the signed-in person belongs to.
+export interface WorkspaceRef {
+  id: string;
+  clerk_org_id: string;
+  name: string;
+  slug: string;
+  organization_type: OrganizationType;
+  parent_practice_id: string | null;
+  role: TeamRole;
+  is_current: boolean;
+}
+
+// "deactivated" is still inside its 30-day restore window; "expired" isn't.
+export type ClientWorkspaceStatus = "active" | "deactivated" | "expired";
+
+export interface ClientWorkspace {
+  id: string;
+  clerk_org_id: string;
+  name: string;
+  slug: string;
+  status: ClientWorkspaceStatus;
+  client_contact_email: string | null;
+  created_at: string;
+  deactivated_at: string | null;
+  restorable_until: string | null;
+  stats: {
+    hours_saved: number;
+    active_runs: number;
+    pending_approvals: number;
+    total_cost_usd: number;
+  };
+}
+
+export interface PracticeInfo {
+  id: string;
+  name: string;
+  organization_type: OrganizationType;
+  role: TeamRole;
+  max_client_workspaces: number;
+  active_client_workspaces: number;
+}
+
+export interface PortfolioSummary {
+  active_workspaces: number;
+  hours_saved: number;
+  active_runs: number;
+  pending_approvals: number;
+  total_cost_usd: number;
+}
