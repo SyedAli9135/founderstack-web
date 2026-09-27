@@ -9,6 +9,7 @@ import { PushPermissionPrompt } from "@/components/approvals/PushPermissionPromp
 import { usePendingApprovals } from "@/hooks/useApprovals";
 import { usePendingInvitations } from "@/hooks/usePendingInvitations";
 import { WorkspaceSwitcher } from "@/components/portfolio/WorkspaceSwitcher";
+import { PaymentFailedBanner } from "@/components/billing/PaymentFailedBanner";
 import {
   LayoutDashboard,
   Bot,
@@ -30,6 +31,7 @@ import {
   LayoutGrid,
   BookOpen,
   FileBarChart,
+  CreditCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,6 +62,7 @@ const settingsItems = [
   { href: "/settings/api-key", label: "LLM Providers", icon: KeyRound },
   { href: "/settings/notifications", label: "Notifications", icon: BellRing },
   { href: "/settings/team", label: "Team", icon: Users },
+  { href: "/settings/billing", label: "Billing", icon: CreditCard },
   { href: "/settings/security", label: "Audit Log", icon: Shield },
 ];
 
@@ -181,6 +184,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <UserButton />
           </header>
+          <PaymentFailedBanner />
 
           <div className="flex-1 overflow-y-auto p-6">{children}</div>
         </main>

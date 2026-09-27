@@ -88,8 +88,11 @@ export function OnboardingShield({ children }: OnboardingShieldProps) {
         // one, so a brand-new client workspace without a key must not lock the
         // operator out of it.
         const isPortfolio = pathname === "/practice" || pathname.startsWith("/practice/");
+        // Paying doesn't need a key either, and Stripe Checkout returns here —
+        // bouncing that redirect to onboarding would drop its session_id.
+        const isBilling = pathname === "/settings/billing";
 
-        if (!hasActiveKey && !isOnboarding && !isPortfolio) {
+        if (!hasActiveKey && !isOnboarding && !isPortfolio && !isBilling) {
             // Missing key, kick to onboarding
             router.push("/onboarding");
         } else if (hasActiveKey && isOnboarding && !hasActiveStep) {

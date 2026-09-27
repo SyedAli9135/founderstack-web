@@ -833,3 +833,37 @@ no authenticated calls, view counting (preview excluded), copy link, revoke → 
 unavailable page, unknown token and expired link identical, rate-limited state, 390px layouts.
 Don't click "Print / Save as PDF" when driving this with Claude-in-Chrome — `window.print()` opens a
 native dialog that blocks the extension.
+
+## Workflow 15 — billing & subscription (`src/hooks/useSubscription.ts`,
+`src/app/(app)/settings/billing/page.tsx`, `src/components/billing/PaymentFailedBanner.tsx`)
+
+**`/settings/billing`**: current plan card (status badge, next billing date / trial end /
+"Cancels on …", "Manage payment & invoices" → Stripe billing portal), usage meters against the
+org's real limits (agents, workflows, knowledge-base storage, integrations — amber at 80%, red at or
+over), and the three plan cards. **No card is ever collected here**: "Choose X" (no live
+subscription) redirects to Stripe Checkout; with a live subscription, "Upgrade to / Switch to X"
+changes the plan in place after a confirm dialog (`ConfirmDialog` gained a `variant` prop — a plan
+change isn't destructive), which also warns on a downgrade that would leave the org over the new
+plan's limits. Members see the plan with controls disabled; a client workspace sees "billed through
+its practice" only. The page is exempt from `OnboardingShield`'s BYOK redirect — paying doesn't
+need a key, and bouncing Checkout's return to onboarding would drop its `session_id`.
+
+**Checkout return**: Stripe sends the founder to `/settings/billing?payment=success&session_id=…`;
+`useConfirmCheckout(sessionId)` calls `POST /billing/subscription/confirm` so the new plan shows
+immediately even if the webhook is slow, toasts "Plan upgraded!", then strips the query string.
+**It's a `useQuery` keyed by the session, not a mutation — a real bug found live**: first built as
+`mutate()` from an effect with a ref guard, it hung on "Confirming your payment…" forever under
+React's dev-mode double mount (the per-call `onSettled` was lost with the first mount). The confirm
+is idempotent server-side, so a query is the right shape; toasts use the session id as their id so
+a double effect can't show two. `?payment=cancelled` toasts "No charge was made".
+
+**`PaymentFailedBanner`** sits under the app header on every page when the subscription is
+`past_due`/`unpaid` ("Payment failed. Update billing to keep agents running." + link), hidden for
+client workspaces. `useSubscription` has a 60s `staleTime` since the banner reads it everywhere.
+Sidebar: Settings → "Billing".
+
+**Live-verified 2026-09-27** against Stripe test mode (see `founderstack-api-go/CLAUDE.md`'s
+workflow 15 section for the full sequence): member view in the dev org, Checkout with test card
+4242 → Growth, in-place upgrade to Studio, cancellation → Starter, a test-clock renewal failure →
+banner on Portfolio + billing page alert, recovery and cancel-at-period-end through the Stripe
+portal, re-upgrade clearing the cancel, 390px layout with no horizontal overflow.

@@ -442,6 +442,52 @@ export interface BillingUsage extends ApiKeyUsage {
   agent_cost_share: AgentCostShareItem[];
 }
 
+// Workflow 15 (billing & subscription). status is Stripe's subscription
+// status, or "trial"/"trial_expired" for an org that has never subscribed.
+export type PlanTier = "starter" | "growth" | "studio";
+
+export interface Plan {
+  tier: PlanTier;
+  name: string;
+  monthly_price_usd: number;
+  max_agents: number;
+  max_workflows: number;
+  max_storage_gb: number;
+  max_integrations: number;
+  features: string[];
+}
+
+export interface UsageMeter {
+  used: number;
+  limit: number;
+}
+
+export interface Subscription {
+  plan: Plan;
+  status: string;
+  trial_ends_at: string | null;
+  next_billing_date: string | null;
+  cancel_at_period_end: boolean;
+  has_billing_account: boolean;
+  can_manage: boolean;
+  managed_by_practice: boolean;
+  billing_configured: boolean;
+  usage: {
+    agents: UsageMeter;
+    workflows: UsageMeter;
+    integrations: UsageMeter;
+    storage_bytes: number;
+    storage_limit_gb: number;
+  };
+  plans: Plan[];
+}
+
+export interface UpgradeResponse {
+  checkout_url?: string;
+  changed: boolean;
+  subscription?: Subscription;
+}
+
 export interface LedgerEntry {
   id: string;
   created_at: string;

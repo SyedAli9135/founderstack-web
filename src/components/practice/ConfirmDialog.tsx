@@ -12,6 +12,7 @@ export function ConfirmDialog({
   pending,
   onConfirm,
   onOpenChange,
+  variant = "destructive",
 }: {
   open: boolean;
   title: string;
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   pending: boolean;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
+  variant?: "destructive" | "default";
 }) {
   return (
     <AlertDialog.Root open={open} onOpenChange={(o) => !pending && onOpenChange(o)}>
@@ -30,7 +32,7 @@ export function ConfirmDialog({
           <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">{description}</AlertDialog.Description>
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Close render={<Button variant="ghost" disabled={pending} />}>Cancel</AlertDialog.Close>
-            <Button variant="destructive" className="gap-1.5" onClick={onConfirm} disabled={pending}>
+            <Button variant={variant} className="gap-1.5" onClick={onConfirm} disabled={pending}>
               {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {confirmLabel}
             </Button>
