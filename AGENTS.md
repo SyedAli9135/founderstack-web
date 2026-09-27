@@ -804,3 +804,32 @@ promote an existing agent, delete keeps agents running and drops their badges. T
 stacks each parameter's three inputs below the `sm` breakpoint (side by side they were ~75px each
 at 390px). Claude-in-Chrome note: element-ref clicks sometimes don't focus inputs or submit these
 forms — coordinate clicks or a direct `button.click()` do.
+
+## Workflow 23 — client reports (`src/hooks/useReports.ts`, `src/components/reports/ReportView.tsx`,
+`src/app/(app)/practice/reports/`, `src/app/reports/[token]/`)
+
+**One renderer, two surfaces**: `ReportView` draws both the public share page and the operator's
+preview (`/practice/reports/[id]`), so what the operator reviews is exactly what the client sees.
+A section renders iff it's present in the snapshot — the backend never stores hidden sections and
+the public payload carries no `visible_sections` at all. Times are formatted in the report's own
+timezone (the one its window was computed in), matching its "times in …" footer.
+
+**The public page (`src/app/reports/[token]`) sits outside `(app)`** like `/invitations`: no auth,
+no app chrome, its own layout with `robots: noindex`. **It fetches from the viewer's browser on
+purpose** — the endpoint rate-limits per client IP, and a server-side fetch would put every viewer
+behind the Next.js server's single IP. States: loading / report (+ "Print / Save as PDF") /
+"This report is no longer available" (404: revoked, expired or never existed — deliberately
+indistinguishable) / "can't be shown right now" (429 or network). "Powered by FounderStack" footer
+is the growth loop. `copyShareLink` falls back to a hidden-textarea copy when the Clipboard API is
+unavailable (plain-http dev), then toasts "Link copied — valid until …".
+
+**Generate form**: client select limited to workspaces the viewer administers, period presets
+(last month / this month / last 30 days), the three visibility toggles (all off by default),
+expiry (7/30/90/365 days), optional title → lands on the preview.
+
+**Live-verified 2026-09-27** as a non-default account (661, admin of its own practice): generate
+(outcomes-only and full-detail), exact numbers against seeded data, public link with no chrome and
+no authenticated calls, view counting (preview excluded), copy link, revoke → immediate
+unavailable page, unknown token and expired link identical, rate-limited state, 390px layouts.
+Don't click "Print / Save as PDF" when driving this with Claude-in-Chrome — `window.print()` opens a
+native dialog that blocks the extension.

@@ -29,6 +29,7 @@ import {
   Sparkles,
   LayoutGrid,
   BookOpen,
+  FileBarChart,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/practice", label: "Portfolio", icon: LayoutGrid },
   { href: "/practice/sops", label: "SOP Library", icon: BookOpen },
+  { href: "/practice/reports", label: "Client Reports", icon: FileBarChart },
   { href: "/agents", label: "Agents", icon: Bot },
   // "Agent Teams" (Network icon), distinct from settings' own "Team" link
   // below (Users icon, workflow 13 — org membership/roles, a completely

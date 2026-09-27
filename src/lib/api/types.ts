@@ -781,3 +781,77 @@ export interface SopInput {
   changelog?: string;
   source?: { agent_id: string; workflow_id?: string };
 }
+
+// Workflow 23 (Client-Facing Reports) — matches internal/api/reports'
+// Snapshot/reportView exactly. Hidden sections are simply absent.
+export interface ReportSections {
+  cost: boolean;
+  tokens: boolean;
+  runs: boolean;
+}
+
+export interface ReportSnapshot {
+  client_name: string;
+  prepared_by: string;
+  date_from: string;
+  date_to: string;
+  timezone: string;
+  generated_at: string;
+  summary: {
+    hours_saved: number;
+    runs_completed: number;
+    runs_failed: number;
+    runs_total: number;
+    workflows_active: number;
+  };
+  workflows: { name: string; runs_completed: number; runs_total: number; hours_saved: number }[];
+  cost?: { total_usd: number; by_agent: { agent_name: string; cost_usd: number }[] };
+  tokens?: { input: number; output: number; cached: number; total: number };
+  runs?: {
+    workflow_name: string;
+    status: string;
+    started_at: string;
+    completed_at?: string;
+    hours_saved?: number;
+    cost_usd?: number;
+  }[];
+}
+
+export type ReportStatus = "active" | "expired" | "revoked";
+
+export interface ClientReport {
+  id: string;
+  org_id: string;
+  org_name: string;
+  title: string;
+  date_from: string;
+  date_to: string;
+  visible_sections: ReportSections;
+  share_token: string;
+  share_path: string;
+  expires_at: string;
+  status: ReportStatus;
+  view_count: number;
+  last_viewed_at: string | null;
+  created_at: string;
+  snapshot?: ReportSnapshot;
+}
+
+export interface ReportInput {
+  org_id: string;
+  title?: string;
+  date_from: string;
+  date_to: string;
+  visible_sections: ReportSections;
+  expires_in_days: number;
+}
+
+// GET /api/public/reports/{token} — no visible_sections on purpose.
+export interface PublicReport {
+  title: string;
+  date_from: string;
+  date_to: string;
+  timezone: string;
+  expires_at: string;
+  snapshot: ReportSnapshot;
+}
