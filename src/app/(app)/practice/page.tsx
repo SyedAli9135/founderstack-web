@@ -13,7 +13,7 @@ import {
   useMyWorkspaces,
   useSwitchWorkspace,
 } from "@/hooks/usePortfolio";
-import { ClientWorkspace } from "@/lib/api/types";
+import { ClientWorkspace, PracticeBilling } from "@/lib/api/types";
 
 // Mock and low-volume runs cost fractions of a cent; "$0.00" would read as
 // "nothing happened" on a portfolio view.
@@ -142,15 +142,24 @@ export default function PracticePage() {
   const active = workspaces.filter((w) => w.status === "active");
   const inactive = workspaces.filter((w) => w.status !== "active");
   const canManage = practice.role === "owner" || practice.role === "admin";
-  const atLimit = practice.active_client_workspaces >= practice.max_client_workspaces;
+  const billing = practice.billing;
+  const atLimit = billing
+    ? billing.active_client_workspaces >= billing.max_client_workspaces
+    : practice.active_client_workspaces >= practice.max_client_workspaces;
   const currentId = mine?.find((w) => w.is_current)?.id;
   const practiceClerkId = mine?.find((w) => w.id === practice.id)?.clerk_org_id;
 
-  const tiles = [
+  const tiles: { label: string; value: React.ReactNode; hint?: React.ReactNode }[] = [
     // The list only ever holds workspaces the viewer belongs to, so for a
     // non-admin this is "yours", not the practice's total against its limit.
     canManage
-      ? { label: "Client workspaces", value: `${practice.active_client_workspaces} / ${practice.max_client_workspaces}` }
+      ? billing
+        ? {
+            label: "Client workspaces",
+            value: `${billing.active_client_workspaces} / ${billing.max_client_workspaces}`,
+            hint: <IncludedHint billing={billing} />,
+          }
+        : { label: "Client workspaces", value: `${practice.active_client_workspaces} / ${practice.max_client_workspaces}` }
       : { label: "Your client workspaces", value: practice.active_client_workspaces },
     { label: "Hours saved", value: summary ? formatHours(summary.hours_saved) : null },
     { label: "Active runs", value: summary?.active_runs ?? null },
@@ -187,7 +196,7 @@ export default function PracticePage() {
           </Button>
           {canManage &&
             (atLimit ? (
-              <Button size="sm" className="gap-1.5" disabled title="Your plan's client workspace limit is reached">
+              <Button size="sm" className="gap-1.5" disabled title={`Your ${billing?.plan_name ?? ""} plan's client workspace limit is reached — upgrade in Billing`}>
                 <Plus className="h-4 w-4" /> Add client workspace
               </Button>
             ) : (
@@ -207,6 +216,7 @@ export default function PracticePage() {
             <p className="mt-1.5 text-xl font-semibold tabular-nums">
               {t.value === null ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : t.value}
             </p>
+            {t.hint}
           </div>
         ))}
       </div>
@@ -300,5 +310,22 @@ export default function PracticePage() {
         }}
       />
     </div>
+  );
+}
+
+// "N of M included" before any charge happens, then what the extras cost.
+function IncludedHint({ billing }: { billing: PracticeBilling }) {
+  const { active_client_workspaces: active, included_client_workspaces: included, billed_extra_workspaces: extra } = billing;
+  if (extra > 0) {
+    return (
+      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+        {included} included · +{extra} × ${billing.extra_workspace_usd}/mo
+      </p>
+    );
+  }
+  return (
+    <p className="mt-1 text-[11px] text-muted-foreground">
+      {Math.min(active, included)} of {included} included in {billing.plan_name}
+    </p>
   );
 }

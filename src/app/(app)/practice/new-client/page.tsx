@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useCreateClientWorkspace, useSwitchWorkspace } from "@/hooks/usePortfolio";
+import { useClientWorkspaces, useCreateClientWorkspace, useSwitchWorkspace } from "@/hooks/usePortfolio";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 disabled:opacity-60";
@@ -18,6 +18,11 @@ export default function NewClientWorkspacePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Workflow 24: say what this workspace costs before creating it.
+  const billing = useClientWorkspaces().data?.practice.billing;
+  const atCap = !!billing && billing.active_client_workspaces >= billing.max_client_workspaces;
+  const addsCharge =
+    !!billing && !atCap && billing.extra_workspace_usd > 0 && billing.active_client_workspaces >= billing.included_client_workspaces;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +97,28 @@ export default function NewClientWorkspacePage() {
           />
         </div>
 
+        {atCap && billing && (
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
+            <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span>
+              Your {billing.plan_name} plan allows {billing.max_client_workspaces} client workspace
+              {billing.max_client_workspaces === 1 ? "" : "s"}, and you&apos;re using all of them.{" "}
+              <Link href="/settings/billing" className="text-primary hover:underline">Upgrade your plan</Link> from your practice, or
+              remove a workspace you no longer need.
+            </span>
+          </div>
+        )}
+        {addsCharge && billing && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span>
+              This will add ${billing.extra_workspace_usd}/month to your next invoice. Your {billing.plan_name} plan includes{" "}
+              {billing.included_client_workspaces} client workspaces and you&apos;re using {billing.active_client_workspaces}. The rest of
+              this billing period is prorated; removing the workspace stops the charge.
+            </span>
+          </div>
+        )}
+
         {error && (
           <p className="flex items-start gap-1.5 text-xs text-destructive">
             <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
@@ -103,9 +130,9 @@ export default function NewClientWorkspacePage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/practice">Cancel</Link>
           </Button>
-          <Button type="submit" size="sm" className="gap-1.5" disabled={create.isPending}>
+          <Button type="submit" size="sm" className="gap-1.5" disabled={create.isPending || atCap}>
             {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Create workspace
+            {addsCharge && billing ? `Create workspace · +$${billing.extra_workspace_usd}/mo` : "Create workspace"}
           </Button>
         </div>
       </form>

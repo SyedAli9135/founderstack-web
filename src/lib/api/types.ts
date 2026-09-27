@@ -454,6 +454,9 @@ export interface Plan {
   max_workflows: number;
   max_storage_gb: number;
   max_integrations: number;
+  included_client_workspaces: number;
+  max_client_workspaces: number;
+  extra_workspace_usd: number;
   features: string[];
 }
 
@@ -479,6 +482,16 @@ export interface Subscription {
     storage_bytes: number;
     storage_limit_gb: number;
   };
+  // Set for a practice (workflow 24).
+  client_workspaces?: {
+    active: number;
+    included: number;
+    max: number;
+    extra: number;
+    extra_workspace_usd: number;
+  };
+  // Plan + extra client workspaces at today's count; excludes prorations and tax.
+  next_invoice_estimate_usd: number | null;
   plans: Plan[];
 }
 
@@ -714,6 +727,20 @@ export interface PracticeInfo {
   role: TeamRole;
   max_client_workspaces: number;
   active_client_workspaces: number;
+  billing?: PracticeBilling;
+}
+
+// Workflow 24: the practice's client workspace terms. active_client_workspaces
+// here is the real count; PracticeInfo's own only covers workspaces the viewer
+// belongs to.
+export interface PracticeBilling {
+  plan_tier: PlanTier;
+  plan_name: string;
+  included_client_workspaces: number;
+  max_client_workspaces: number;
+  active_client_workspaces: number;
+  extra_workspace_usd: number;
+  billed_extra_workspaces: number;
 }
 
 export interface PortfolioSummary {

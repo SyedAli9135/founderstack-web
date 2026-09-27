@@ -42,6 +42,8 @@ function useInvalidatePortfolio() {
   return () => {
     queryClient.invalidateQueries({ queryKey: ["practice"] });
     queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    // The practice's billing counts active client workspaces (workflow 24).
+    queryClient.invalidateQueries({ queryKey: ["billing", "subscription"] });
   };
 }
 

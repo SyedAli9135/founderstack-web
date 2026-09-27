@@ -867,3 +867,28 @@ workflow 15 section for the full sequence): member view in the dev org, Checkout
 4242 → Growth, in-place upgrade to Studio, cancellation → Starter, a test-clock renewal failure →
 banner on Portfolio + billing page alert, recovery and cancel-at-period-end through the Stripe
 portal, re-upgrade clearing the cancel, 390px layout with no horizontal overflow.
+
+## Workflow 24 — practice billing (`src/app/(app)/practice/page.tsx`,
+`src/app/(app)/practice/new-client/page.tsx`, `src/app/(app)/settings/billing/page.tsx`)
+
+A practice's plan includes some client workspaces (Starter 1 hard cap; Growth 3 then $15/mo each;
+Studio 10 then $10/mo each); see `founderstack-api-go/CLAUDE.md`'s workflow 24 section for how
+Stripe is kept in step. All three surfaces read `practice.billing` (from `GET
+/practice/client-workspaces`) or `client_workspaces` (from `GET /billing/subscription`) — **use
+those counts, not `practice.active_client_workspaces`**, which only covers workspaces the viewer
+belongs to.
+
+- **Portfolio tile**: "4 / 25" with "3 of 3 included in Growth", turning amber as "3 included · +1 ×
+  $15/mo" once extras are billed. "Add client workspace" disables at the plan's cap.
+- **New client workspace**: when the next workspace isn't included, an amber notice ("This will
+  add $15/month to your next invoice…", prorated, stops on removal) and the button reads "Create
+  workspace · +$15/mo"; at the cap, a neutral notice links to Billing and the button is disabled.
+- **Billing page**: a "Client workspaces" meter ("4 of 3 included · up to 25", extras line), an
+  "Estimated next invoice" line when extras make it differ from the plan price, and a plan card
+  whose cap is below the practice's active count is disabled with "remove N first" (the API
+  refuses it anyway with `TOO_MANY_CLIENT_WORKSPACES`).
+
+Creating/removing/restoring a workspace now also invalidates `["billing", "subscription"]`
+(`useInvalidatePortfolio`). **Live-verified 2026-09-27** end to end with real Stripe test mode (see
+the backend section) — including the client-workspace view of `/settings/billing` ("billed through
+the practice"), reached with no BYOK key thanks to workflow 15's onboarding exemption.

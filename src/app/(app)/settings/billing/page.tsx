@@ -119,6 +119,7 @@ export default function BillingPage() {
 
   const live = isLive(sub.status);
   const current = sub.plan;
+  const cw = sub.client_workspaces;
   const st = statusLabel[sub.status] ?? { label: sub.status, className: "border-border text-muted-foreground" };
 
   const choose = (plan: Plan) => {
@@ -199,6 +200,12 @@ export default function BillingPage() {
             ) : sub.next_billing_date ? (
               <p>Next billing date: <span className="text-foreground">{formatDate(sub.next_billing_date)}</span></p>
             ) : null}
+            {sub.next_invoice_estimate_usd != null && sub.next_invoice_estimate_usd !== current.monthly_price_usd && (
+              <p>
+                Estimated next invoice: <span className="text-foreground">${sub.next_invoice_estimate_usd}</span>
+                <span className="text-xs"> (plan + extra client workspaces)</span>
+              </p>
+            )}
             {sub.status === "trial" && sub.trial_ends_at && <p>Trial ends {formatDate(sub.trial_ends_at)} — pick a plan to keep going.</p>}
             {sub.status === "trial_expired" && <p>Your trial has ended. Choose a plan below to keep your agents running.</p>}
           </div>
@@ -222,6 +229,23 @@ export default function BillingPage() {
               display={`${formatGB(sub.usage.storage_bytes)} / ${sub.usage.storage_limit_gb} GB`}
             />
             <Meter label="Integrations" used={sub.usage.integrations.used} limit={sub.usage.integrations.limit} />
+            {cw && (
+              <div className="sm:col-span-2">
+                <Meter
+                  label="Client workspaces"
+                  used={cw.active}
+                  limit={cw.max}
+                  display={`${cw.active} of ${cw.included} included${cw.max > cw.included ? ` · up to ${cw.max}` : ""}`}
+                />
+                <p className={`mt-1.5 text-xs ${cw.extra > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                  {cw.extra > 0
+                    ? `+${cw.extra} extra this cycle, ~$${cw.extra * cw.extra_workspace_usd}/month ($${cw.extra_workspace_usd} each)`
+                    : cw.extra_workspace_usd > 0
+                      ? `Each workspace beyond ${cw.included} adds $${cw.extra_workspace_usd}/month.`
+                      : `${current.name} includes ${cw.included}. Upgrade to add more.`}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -238,6 +262,9 @@ export default function BillingPage() {
             const rank = rankOf(current.tier);
             const verb = !live ? "Choose" : i > rank ? "Upgrade to" : "Switch to";
             const busy = upgrade.isPending && upgrade.variables === plan.tier && !pending;
+            // A plan with a lower client workspace cap than the practice is
+            // running is refused server-side; say so before the click.
+            const tooMany = !!cw && cw.active > plan.max_client_workspaces;
             return (
               <div key={plan.tier} className={`flex flex-col rounded-lg border bg-card p-5 ${isCurrent ? "border-primary" : "border-border"}`}>
                 <div className="flex items-baseline justify-between">
@@ -258,12 +285,18 @@ export default function BillingPage() {
                 <Button
                   className="mt-5 w-full gap-1.5"
                   variant={isCurrent || (live && i < rank) ? "outline" : "default"}
-                  disabled={isCurrent || !sub.can_manage || !sub.billing_configured || upgrade.isPending}
+                  disabled={isCurrent || tooMany || !sub.can_manage || !sub.billing_configured || upgrade.isPending}
                   onClick={() => onPick(plan)}
                 >
                   {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {isCurrent ? "Current plan" : `${verb} ${plan.name}`}
                 </Button>
+                {tooMany && !isCurrent && cw && (
+                  <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                    Allows {plan.max_client_workspaces} client workspace{plan.max_client_workspaces === 1 ? "" : "s"} — remove{" "}
+                    {cw.active - plan.max_client_workspaces} first
+                  </p>
+                )}
               </div>
             );
           })}
