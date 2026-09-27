@@ -768,3 +768,39 @@ list only ever holds workspaces the viewer belongs to, so "No client workspaces 
 when driving this with Claude-in-Chrome: the automation tab reports `visibilityState: "hidden"`,
 so CSS transitions never advance and base-ui popups (menu, dialog) sit at `opacity: 0` — inject
 `*{transition:none!important}` in the tab; it's not an app bug.
+
+## Workflow 22 — SOP library (`src/hooks/useSops.ts`, `src/components/practice/`,
+`src/app/(app)/practice/sops/`)
+
+**`SopForm` mirrors `AgentForm`'s fields and styling but is its own component** — `AgentForm` is
+wired to the agent create/update mutations and to `useAvailableTools` (only the *current
+workspace's* connected tools). A SOP is authored once for many clients, so it lists the full
+catalog (`GET /practice/sops/tools`) and adds a parameters editor, an optional workflow section,
+and live "undeclared `{{placeholder}}`" detection. When editing, it only sends config fields if
+they actually changed (a snapshot of the initial form state) — a name/category-only save must not
+create a new version and flag every client "update available".
+
+**Routes**: `/practice/sops` (library grid with per-SOP deployment status), `/practice/sops/new`
+(from scratch, or "promote" mode via `?from_agent=<id>` — reached from the agent page's "Save as
+SOP" button, which shows only for practice admins and only on agents no SOP manages), and
+`/practice/sops/[id]` (config view, deployments table with Sync / Overrides / Remove, version
+history, inline edit, deploy). `DeploySopDialog` deploys to several workspaces **sequentially** so
+one failure (e.g. an agent-name clash) is reported on its own row. `OverridesFields` is shared by
+deploy and "edit overrides"; a blank field means "use the SOP's value" (`cleanOverrides` strips it),
+so a client keeps inheriting later default changes for anything it didn't set.
+
+**"Managed by SOP"** — `SopBadge` on agent and workflow cards, plus a banner on the agent edit page
+(edits there are replaced on the next sync). Portfolio cards show "N SOPs deployed, M updates
+available" (amber when updates exist).
+
+**Sidebar highlighting now picks the longest matching href** (`activeHrefFor` in the app layout):
+`/practice` and `/practice/sops` would otherwise both highlight (the same bug already affected
+`/agents` vs `/agents/teams`).
+
+**Live-verified 2026-09-26** in a real browser: create with parameters, deploy to two clients with
+per-client overrides, rendered values checked in the DB, a deployed workflow run end to end, edit →
+v2 → sync one client only (overrides preserved), edit overrides without upgrading, un-deploy,
+promote an existing agent, delete keeps agents running and drops their badges. The parameter editor
+stacks each parameter's three inputs below the `sm` breakpoint (side by side they were ~75px each
+at 390px). Claude-in-Chrome note: element-ref clicks sometimes don't focus inputs or submit these
+forms — coordinate clicks or a direct `button.click()` do.

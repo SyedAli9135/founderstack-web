@@ -28,6 +28,7 @@ import {
   Shield,
   Sparkles,
   LayoutGrid,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/practice", label: "Portfolio", icon: LayoutGrid },
+  { href: "/practice/sops", label: "SOP Library", icon: BookOpen },
   { href: "/agents", label: "Agents", icon: Bot },
   // "Agent Teams" (Network icon), distinct from settings' own "Team" link
   // below (Users icon, workflow 13 — org membership/roles, a completely
@@ -65,15 +67,15 @@ function NavLink({
   icon: Icon,
   badge,
   onNavigate,
+  isActive,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   badge?: number;
   onNavigate?: () => void;
+  isActive: boolean;
 }) {
-  const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(href + "/");
 
   return (
     <Link
@@ -96,7 +98,17 @@ function NavLink({
   );
 }
 
+// Nested routes (/practice and /practice/sops) would otherwise both match;
+// only the longest matching href is highlighted.
+function activeHrefFor(pathname: string): string | undefined {
+  return [...navItems, ...settingsItems]
+    .map((i) => i.href)
+    .filter((href) => pathname === href || pathname.startsWith(href + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
+  const activeHref = activeHrefFor(usePathname());
   // Polled, not SSE-driven — the badge just needs to be roughly current,
   // and every other page reads it the same way (see usePendingApprovals'
   // own refetchInterval reasoning).
@@ -115,7 +127,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
-          <NavLink key={item.href} {...item} badge={badgeCounts[item.href]} onNavigate={onNavigate} />
+          <NavLink key={item.href} {...item} badge={badgeCounts[item.href]} onNavigate={onNavigate} isActive={item.href === activeHref} />
         ))}
       </nav>
 
@@ -124,7 +136,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           Settings
         </p>
         {settingsItems.map((item) => (
-          <NavLink key={item.href} {...item} onNavigate={onNavigate} />
+          <NavLink key={item.href} {...item} onNavigate={onNavigate} isActive={item.href === activeHref} />
         ))}
       </div>
     </>

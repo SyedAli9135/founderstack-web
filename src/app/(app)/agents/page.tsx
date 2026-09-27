@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SopBadge } from "@/components/practice/SopBadge";
 import Link from "next/link";
 import { useAgents, useDeleteAgent } from "@/hooks/useAgents";
 import { usePermissions } from "@/hooks/useTeam";
@@ -31,6 +32,11 @@ function AgentCard({ agent, canModify }: { agent: Agent; canModify: boolean }) {
         </div>
 
         <h4 className="text-sm font-medium text-foreground">{agent.name}</h4>
+        {agent.sop && (
+          <div className="mt-1.5">
+            <SopBadge sop={agent.sop} />
+          </div>
+        )}
         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {agent.description || agent.system_prompt}
         </p>

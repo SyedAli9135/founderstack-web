@@ -114,6 +114,14 @@ export interface Agent {
   // 0 on a freshly created/updated agent. Powers the "N workflows use this
   // agent" warning before deleting one.
   workflow_count: number;
+  // Present when a practice SOP deployment manages this agent (workflow 22)
+  // — a sync overwrites manual edits.
+  sop?: SopLabel;
+}
+
+export interface SopLabel {
+  name: string;
+  version: number;
 }
 
 // One entry per tool from a service the org has actually connected —
@@ -145,6 +153,7 @@ export interface Workflow {
   version: number;
   created_at: string;
   updated_at: string;
+  sop?: SopLabel;
 }
 
 // Workflow 9 — matches internal/api/runs/handler.go's runSummary/runDetail
@@ -647,6 +656,8 @@ export interface ClientWorkspace {
     active_runs: number;
     pending_approvals: number;
     total_cost_usd: number;
+    sops_deployed: number;
+    sop_updates_available: number;
   };
 }
 
@@ -665,4 +676,108 @@ export interface PortfolioSummary {
   active_runs: number;
   pending_approvals: number;
   total_cost_usd: number;
+}
+
+// Workflow 22 (SOP Library) — matches internal/core/sop's config types and
+// internal/api/practice/sops.go's views exactly.
+export interface SopPolicyScope {
+  allowed_tools: string[];
+  max_tool_calls?: number;
+  max_cost_per_run_usd?: number;
+}
+
+export interface SopAgentConfig {
+  name: string;
+  description?: string;
+  agent_type?: string;
+  model?: string;
+  system_prompt: string;
+  max_output_tokens?: number;
+  temperature?: number;
+  policy_scope: SopPolicyScope;
+}
+
+export interface SopWorkflowConfig {
+  name: string;
+  description?: string;
+  trigger_type: WorkflowTriggerType;
+  cron_expression?: string;
+  requires_approval: boolean;
+  task_input_template?: string;
+  estimated_manual_minutes?: number;
+}
+
+// A {{key}} placeholder usable in the system prompt / task input.
+export interface SopParameter {
+  key: string;
+  label?: string;
+  default: string;
+}
+
+export interface SopOverrides {
+  params?: Record<string, string>;
+  max_cost_per_run_usd?: number;
+  max_tool_calls?: number;
+  cron_expression?: string;
+  requires_approval?: boolean;
+}
+
+export interface SopSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  current_version: number;
+  agent_name: string;
+  workflow_name: string | null;
+  trigger_type: WorkflowTriggerType | null;
+  required_integrations: string[];
+  parameter_count: number;
+  active_deployments: number;
+  outdated_deployments: number;
+  updated_at: string;
+}
+
+export interface SopDetail extends SopSummary {
+  agent_config: SopAgentConfig;
+  workflow_config: SopWorkflowConfig | null;
+  parameters: SopParameter[];
+  versions: { version: number; changelog: string | null; created_at: string }[];
+}
+
+// "broken" = the client removed the SOP's agent; sync can't repair it.
+export type SopDeploymentStatus = "up_to_date" | "update_available" | "broken";
+
+export interface SopDeployment {
+  id: string;
+  workspace_id: string;
+  workspace_name: string;
+  deployed_version: number;
+  current_version: number;
+  status: SopDeploymentStatus;
+  parameter_overrides: SopOverrides;
+  missing_integrations: string[];
+  agent_id: string;
+  workflow_id: string | null;
+  deployed_at: string;
+  synced_at: string;
+}
+
+export interface SopToolOption {
+  service: string;
+  name: string;
+  tool_id: string;
+  description: string;
+}
+
+export interface SopInput {
+  name?: string;
+  description?: string;
+  category?: string;
+  agent_config?: SopAgentConfig;
+  workflow_config?: SopWorkflowConfig;
+  remove_workflow?: boolean;
+  parameters?: SopParameter[];
+  changelog?: string;
+  source?: { agent_id: string; workflow_id?: string };
 }

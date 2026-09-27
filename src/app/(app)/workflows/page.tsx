@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SopBadge } from "@/components/practice/SopBadge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWorkflows, useUpdateWorkflow, useDeleteWorkflow, useRunWorkflow } from "@/hooks/useWorkflows";
@@ -94,6 +95,11 @@ function WorkflowCard({
         </div>
 
         <h4 className="text-sm font-medium text-foreground">{workflow.name}</h4>
+        {workflow.sop && (
+          <div className="mt-1.5">
+            <SopBadge sop={workflow.sop} />
+          </div>
+        )}
         <p className="mt-1 text-xs text-muted-foreground">Agent: {workflow.agent_name}</p>
         {nextRun && (
           <p className="mt-1 text-xs text-muted-foreground">Next run: {nextRun}</p>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Building2, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowUpRight, BookOpen, Building2, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RemoveWorkspaceDialog } from "@/components/portfolio/RemoveWorkspaceDialog";
 import {
@@ -76,6 +76,18 @@ function WorkspaceCard({
           </div>
         ))}
       </dl>
+
+      {ws.stats.sops_deployed > 0 && (
+        <Link
+          href="/practice/sops"
+          className={`mt-4 inline-flex items-center gap-1 self-start text-xs hover:underline ${ws.stats.sop_updates_available > 0 ? "text-amber-500" : "text-muted-foreground"}`}
+        >
+          <BookOpen className="h-3 w-3" />
+          {ws.stats.sops_deployed} {ws.stats.sops_deployed === 1 ? "SOP" : "SOPs"} deployed
+          {ws.stats.sop_updates_available > 0 &&
+            `, ${ws.stats.sop_updates_available} ${ws.stats.sop_updates_available === 1 ? "update" : "updates"} available`}
+        </Link>
+      )}
 
       <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
         <span className="text-xs tabular-nums text-muted-foreground">{formatUSD(ws.stats.total_cost_usd)} spent</span>
@@ -167,18 +179,25 @@ export default function PracticePage() {
             )}
           </p>
         </div>
-        {canManage &&
-          (atLimit ? (
-            <Button size="sm" className="gap-1.5" disabled title="Your plan's client workspace limit is reached">
-              <Plus className="h-4 w-4" /> Add client workspace
-            </Button>
-          ) : (
-            <Button asChild size="sm" className="gap-1.5">
-              <Link href="/practice/new-client">
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/practice/sops">
+              <BookOpen className="h-4 w-4" /> SOP Library
+            </Link>
+          </Button>
+          {canManage &&
+            (atLimit ? (
+              <Button size="sm" className="gap-1.5" disabled title="Your plan's client workspace limit is reached">
                 <Plus className="h-4 w-4" /> Add client workspace
-              </Link>
-            </Button>
-          ))}
+              </Button>
+            ) : (
+              <Button asChild size="sm" className="gap-1.5">
+                <Link href="/practice/new-client">
+                  <Plus className="h-4 w-4" /> Add client workspace
+                </Link>
+              </Button>
+            ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
